@@ -13,7 +13,7 @@ st.set_page_config(
     page_icon="🌱"
 )
 
-# ---------------- ESTILO CSS PREMIUM (COMPACTO) ----------------
+# ---------------- ESTILO CSS PREMIUM (VISUAL RENOVADO) ----------------
 st.markdown("""
 <style>
     /* 1. CONFIGURAÇÕES GERAIS */
@@ -26,18 +26,40 @@ st.markdown("""
 
     /* 3. INPUTS ESTILIZADOS */
     div[data-baseweb="input"] {
-        background-color: #F8F9FA !important; border: 1px solid #CFD8DC !important; border-radius: 6px !important; padding: 2px !important;
+        background-color: #FFFFFF !important; border: 1px solid #CFD8DC !important; border-radius: 6px !important; padding: 2px !important;
     }
     div[data-baseweb="input"]:focus-within {
-        border: 1px solid #2E7D32 !important; background-color: #FFFFFF !important; box-shadow: 0 0 0 1px rgba(46, 125, 50, 0.2);
+        border: 1px solid #2E7D32 !important; box-shadow: 0 0 0 1px rgba(46, 125, 50, 0.2);
     }
     div[data-testid="stWidgetLabel"] label {
         font-weight: 600 !important; color: #37474F !important; font-size: 13px !important; margin-bottom: 0px !important;
     }
     
-    /* 4. CARDS E CONTAINERS */
+    /* 4. CARDS DE MÉTRICAS (KPIs) - ESTILO SOLICITADO */
     div[data-testid="metric-container"] {
-        background-color: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 10px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        background-color: #EFF3F6; /* Cinza azulado suave (Executive Look) */
+        border: 1px solid #D1D5DB; /* Borda cinza média */
+        border-left: 5px solid #2E7D32; /* Detalhe lateral verde Agro */
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Sombra suave */
+        transition: transform 0.2s;
+    }
+    
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px); /* Efeito sutil ao passar o mouse */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* Cor do Título da Métrica */
+    div[data-testid="metric-container"] label {
+        color: #546E7A; /* Cinza chumbo */
+        font-weight: bold;
+    }
+    
+    /* Cor do Valor da Métrica */
+    div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+        color: #102027; /* Quase preto */
     }
     
     /* 5. RODAPÉ */
@@ -104,6 +126,7 @@ receita_saldo_spot = qtd_aberta * preco_mercado
 receita_total_projetada = receita_ja_garantida + receita_saldo_spot
 lucro_projetado = receita_total_projetada - custo_total_safra
 margem_projetada = (lucro_projetado / custo_total_safra) * 100
+preco_medio_final = receita_total_projetada / producao_total
 
 # Breakeven do Saldo
 receita_alvo_total = custo_total_safra * (1 + margem_desejada / 100)
@@ -116,16 +139,23 @@ preco_breakeven_saldo = receita_faltante / qtd_aberta if qtd_aberta > 0 else 0
 st.title("📊 AgroExposure: Gestão de Risco") 
 st.markdown("### Visão Geral & Rentabilidade")
 
-# --- KPIs SUPERIORES ---
+# --- KPIs SUPERIORES (COM ÍCONES E FUNDO ESCURECIDO) ---
 c1, c2, c3, c4 = st.columns(4)
-with c1: st.metric("Produção Total", f"{producao_total:,.0f} sc", delta=f"{area:,.0f} ha")
-with c2: st.metric("Custo Médio (Breakeven)", f"R$ {custo_sc:,.2f} /sc", help="Custo Operacional")
+
+with c1: 
+    # Ícone de Trator/Colheita
+    st.metric("🚜 Produção Total", f"{producao_total:,.0f} sc", delta=f"{area:,.0f} ha")
+with c2: 
+    # Ícone de Gráfico Descendente (Custo) ou Dinheiro
+    st.metric("📉 Custo Médio (Breakeven)", f"R$ {custo_sc:,.2f} /sc", help="Custo Operacional por Saca")
 with c3:
+    # Ícone de Gráfico Ascendente (Lucro)
     delta_margem = margem_projetada - margem_desejada
-    st.metric("Margem Projetada", f"{margem_projetada:.1f}%", delta=f"{delta_margem:.1f}% vs Meta", delta_color="normal" if delta_margem >= 0 else "inverse")
+    st.metric("📈 Margem Projetada", f"{margem_projetada:.1f}%", delta=f"{delta_margem:.1f}% vs Meta", delta_color="normal" if delta_margem >= 0 else "inverse")
 with c4:
-    lbl_delta = "Positivo (Abaixo do Mercado)" if preco_breakeven_saldo < preco_mercado else "Atenção (Acima do Mercado)"
-    st.metric("Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
+    # Ícone de Alvo
+    lbl_delta = "Abaixo do Mercado (Positivo)" if preco_breakeven_saldo < preco_mercado else "Acima do Mercado (Atenção)"
+    st.metric("🎯 Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
 
 st.markdown("---")
 
@@ -195,6 +225,30 @@ with col_right:
     fig_sens.add_vline(x=preco_breakeven_saldo, line_dash="dash", line_color="#FF9800", annotation_text=f"Alvo: R${preco_breakeven_saldo:.1f}")
     fig_sens.update_layout(xaxis_title="Preço Venda Saldo (R$)", yaxis_title="Margem Final (%)", height=350, template="plotly_white", margin=dict(l=20, r=20, t=20, b=20))
     st.plotly_chart(fig_sens, use_container_width=True)
+
+# ---------------- TABELA DETALHADA (REINSERIDA) ----------------
+with st.expander("📋 Ver Detalhamento Numérico (Expandido)", expanded=False):
+    st.markdown("##### Estrutura Financeira da Safra")
+    
+    # Criando um DataFrame com mais racionais
+    dados_detalhe = [
+        ["🔴 CUSTOS", "Custo Total da Operação", f"R$ {custo_total_safra:,.2f}", "Investimento total na área"],
+        ["🔴 CUSTOS", "Custo por Hectare", f"R$ {custo_ha:,.2f}", "Custo de produção unitário (área)"],
+        ["🔴 CUSTOS", "Custo por Saca (Breakeven)", f"R$ {custo_sc:,.2f}", "Preço mínimo de venda para zero-a-zero"],
+        
+        ["🟢 RECEITAS", "Receita Travada (Hedge)", f"R$ {receita_ja_garantida:,.2f}", f"Referente a {qtd_vendida:,.0f} sacas vendidas"],
+        ["🟢 RECEITAS", "Receita Potencial (Saldo)", f"R$ {receita_saldo_spot:,.2f}", f"Referente a {qtd_aberta:,.0f} sacas a mercado ({preco_mercado} R$/sc)"],
+        ["🟢 RECEITAS", "Receita Total Projetada", f"R$ {receita_total_projetada:,.2f}", "Soma do travado + saldo a valor de hoje"],
+        
+        ["🔵 RESULTADO", "Lucro Líquido Projetado", f"R$ {lucro_projetado:,.2f}", "Resultado final estimado"],
+        ["🔵 RESULTADO", "Preço Médio Final", f"R$ {preco_medio_final:,.2f}", "Média ponderada (Hedge + Spot)"],
+        
+        ["🎯 METAS", "Gap para a Meta (R$)", f"R$ {(receita_alvo_total - receita_total_projetada):,.2f}", "Quanto falta de dinheiro para atingir a meta"],
+        ["🎯 METAS", "Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", "Preço necessário no restante para bater a meta"]
+    ]
+    
+    df_detalhe = pd.DataFrame(dados_detalhe, columns=["Categoria", "Indicador", "Valor", "Racional / Descrição"])
+    st.dataframe(df_detalhe, use_container_width=True, hide_index=True)
 
 # ==============================================================================
 # 4. INTELIGÊNCIA DE MERCADO (ABAS AVANÇADAS)
@@ -328,6 +382,6 @@ with tab3:
 # ==============================================================================
 st.markdown("""
 <div class="footer">
-    AgroExposure v2.0 Beta · Powered by Intelligence · João Cunha
+    AgroExposure v2.0 Beta · <b>Powered by Intelligence · João Cunha</b>
 </div>
 """, unsafe_allow_html=True)
