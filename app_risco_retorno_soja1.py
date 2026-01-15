@@ -69,9 +69,12 @@ with st.sidebar:
     with col_a1:
         area_propria = st.number_input("Área Própria (ha)", value=2500, step=0)
     with col_a2:
-        area_arrendada = st.number_input("Área Arrendada (ha)", value=500, step=0)
+        area_arrendada = st.number_input("Área Arrendada (ha)", value=0, step=0)
     
     area_total = area_propria + area_arrendada
+    # Evitar divisão por zero se o usuário zerar tudo
+    if area_total == 0: area_total = 1 
+
     st.caption(f"📍 Área Plantada Total: **{area_total:,.0f} ha**")
 
     produtividade = st.number_input("Produtividade Est. (sc/ha)", value=65.0, step=1.0)
@@ -154,10 +157,13 @@ preco_breakeven_saldo = receita_faltante / qtd_aberta if qtd_aberta > 0 else 0
 # NOVOS KPIs ESPECÍFICOS (CÁLCULOS EXTRAS)
 custo_ha_medio_op_fin = (custo_operacional_total + custo_financeiro_juros) / area_total
 custo_ha_area_arrendada = custo_ha_medio_op_fin + (arrendamento_sc_ha * preco_mercado)
-custo_ha_area_propria = custo_ha_medio_op_fin # Na própria não tem custo terra
+custo_ha_area_propria = custo_ha_medio_op_fin 
 
-juros_por_saca_reais = custo_financeiro_juros / producao_total
-juros_por_saca_fisico = custo_financeiro_juros / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
+juros_por_saca_reais = custo_financeiro_juros / producao_total if producao_total > 0 else 0
+
+# Correção do cálculo do impacto físico dos juros (sc/ha)
+juros_reais_ha = custo_financeiro_juros / area_total
+juros_sc_ha = juros_reais_ha / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
 
 breakeven_sc_ha_spot = (custo_total_safra / preco_mercado) / area_total 
 
@@ -235,11 +241,17 @@ with col_right:
     fig_sens.update_layout(xaxis_title="Preço Soja (R$)", yaxis_title="Margem Líquida (%)", height=350, template="plotly_white")
     st.plotly_chart(fig_sens, use_container_width=True)
 
-# --- DRE GERENCIAL ---
+# --- DRE GERENCIAL (LÓGICA CORRIGIDA PARA ÁREA PRÓPRIA) ---
 st.markdown("### 📋 DRE Gerencial de Decisão (Visão Econômica)")
 
 with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=True):
-    # Construção dos Dados do DRE
+    # Lógica para tratamento de arrendamento zerado
+    desc_custo_terra = f"Ref. {area_arrendada:.0f} ha arrendados ({arrendamento_sc_ha} sc/ha)" if area_arrendada > 0 else "Sem área arrendada"
+    
+    # Preparando valores condicionais (se arrendamento > 0 mostra custo, senão -)
+    custo_arr_indicador = custo_ha_area_arrendada if area_arrendada > 0 else 0
+    custo_arr_eqv = (custo_ha_area_arrendada / preco_medio_ponderado) if area_arrendada > 0 else 0
+    
     dados_dre_pro = [
         # GRUPO DE RECEITA
         {
@@ -271,7 +283,7 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
             "Descrição": f"Total de Juros do Período ({dias_financiamento} dias)",
             "Valor Total (R$)": -custo_financeiro_juros,
             "Indicador (R$/ha)": -custo_financeiro_juros / area_total,
-            "Eqv. (sc/ha)": -juros_por_saca_fisico * (producao_total/area_total) 
+            "Eqv. (sc/ha)": -juros_sc_ha 
         },
         # LINHA EXTRA DE DETALHE DE JUROS
         {
@@ -279,7 +291,7 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
             "Descrição": "Custo financeiro por cada saca produzida",
             "Valor Total (R$)": f"R$ {juros_por_saca_reais:.2f} /sc",
             "Indicador (R$/ha)": "-",
-            "Eqv. (sc/ha)": f"-{juros_por_saca_fisico:.2f} sc/sc" 
+            "Eqv. (sc/ha)": f"{(juros_sc_ha/produtividade * -1):.2f} sc/sc" # % da saca comida pelo juro
         },
         # FLUXO DE CAIXA OPERACIONAL
         {
@@ -292,7 +304,7 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
         # GRUPO CUSTO TERRA
         {
             "Grupo": "6. (-) CUSTO DA TERRA (ARRENDAMENTO)",
-            "Descrição": f"Ref. {area_arrendada:.0f} ha arrendados ({arrendamento_sc_ha} sc/ha)",
+            "Descrição": desc_custo_terra,
             "Valor Total (R$)": -custo_arrendamento_reais,
             "Indicador (R$/ha)": -custo_arrendamento_reais / area_total,
             "Eqv. (sc/ha)": -(vol_arrendamento_sacas / area_total)
@@ -330,10 +342,10 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
         },
         {
             "Grupo": "   🔴 Custo Total Área Arrendada",
-            "Descrição": "Op + Juros + Arrendamento (Só se paga se prod > custo)",
+            "Descrição": "Op + Juros + Arrendamento",
             "Valor Total (R$)": "-",
-            "Indicador (R$/ha)": custo_ha_area_arrendada,
-            "Eqv. (sc/ha)": custo_ha_area_arrendada / preco_medio_ponderado
+            "Indicador (R$/ha)": custo_arr_indicador if area_arrendada > 0 else "-",
+            "Eqv. (sc/ha)": custo_arr_eqv if area_arrendada > 0 else "-"
         },
         {
             "Grupo": "   ⚖️ Breakeven (Preço Venda)",
@@ -371,7 +383,24 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
         height=550
     )
     
-    st.info(f"💡 **Análise Crítica:** Na Área Arrendada, seu custo total é de **{custo_ha_area_arrendada/preco_medio_ponderado:.1f} sc/ha**. Se sua produtividade for **{produtividade} sc/ha**, o lucro nesta área é de apenas **{(produtividade - (custo_ha_area_arrendada/preco_medio_ponderado)):.1f} sc/ha**.")
+    # --- ANÁLISE CRÍTICA INTELIGENTE (CORREÇÃO SOLICITADA) ---
+    if area_arrendada > 0:
+        # Lógica para quem tem arrendamento
+        custo_arr_sc = custo_ha_area_arrendada / preco_medio_ponderado
+        lucro_arr = produtividade - custo_arr_sc
+        
+        if lucro_arr < 0:
+            msg_analise = f"⚠️ **Atenção Crítica:** Na Área Arrendada, seu custo total é de **{custo_arr_sc:.1f} sc/ha**. Com produtividade de **{produtividade} sc/ha**, essa área gera prejuízo de **{lucro_arr:.1f} sc/ha**. A área própria está subsidiando o arrendamento."
+            st.warning(msg_analise)
+        else:
+            msg_analise = f"✅ **Eficiência no Arrendamento:** Seu custo na área arrendada é de **{custo_arr_sc:.1f} sc/ha**. Você tem uma margem de **{lucro_arr:.1f} sc/ha** sobre a terra de terceiros."
+            st.success(msg_analise)
+    else:
+        # Lógica para quem SÓ tem área própria
+        custo_proprio_sc = custo_ha_area_propria / preco_medio_ponderado
+        margem_propria = produtividade - custo_proprio_sc
+        msg_analise = f"💡 **Eficiência Operacional:** Você opera 100% em **Área Própria**. Seu custo total (Op + Juros) é de **{custo_proprio_sc:.1f} sc/ha**. Considerando sua produtividade de **{produtividade} sc/ha**, você tem uma margem limpa de **{margem_propria:.1f} sc/ha** para reinvestimento ou retirada."
+        st.info(msg_analise)
 
 st.markdown("---")
 
@@ -407,7 +436,7 @@ with tab2:
 
 with tab3:
     st.markdown("### 🤖 Advisor Financeiro")
-    peso_divida = (custo_financeiro_juros / receita_bruta_total) * 100
+    peso_divida = (custo_financeiro_juros / receita_bruta_total) * 100 if receita_bruta_total > 0 else 0
     st.write(f"Os juros consomem **{peso_divida:.1f}%** da sua receita bruta.")
     if margem_seguranca_sc_ha < 5:
         st.warning("⚠️ **ALTO RISCO:** Margem de segurança < 5 sc/ha.")
@@ -493,4 +522,4 @@ fig_heat.update_layout(
 )
 st.plotly_chart(fig_heat, use_container_width=True)
 
-st.markdown("<div class='footer'>AgroExposure v3.6 (Heatmap Interativo & DRE Ultimate) · Powered by Intelligence</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'> AgroExposure Intelligence • Designed & Developed by João Cunha</div>", unsafe_allow_html=True)
