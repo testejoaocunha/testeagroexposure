@@ -14,23 +14,6 @@ st.set_page_config(
     page_icon="🌱"
 )
 
-# ---------------- RESOLUÇÃO ROBUSTA DA LOGO ----------------
-# Tenta diferentes caminhos para garantir que funcione local e na nuvem
-def carregar_logo():
-    caminhos_possiveis = [
-        "assets/logo.png",              # Caminho relativo padrão (Streamlit Cloud)
-        "./assets/logo.png",            # Relativo explícito
-        os.path.join(os.path.dirname(__file__), "assets", "logo.png"), # Absoluto dinâmico
-        "logo.png"                      # Caso esteja na raiz (backup)
-    ]
-    
-    for caminho in caminhos_possiveis:
-        if os.path.exists(caminho):
-            return caminho
-    return None
-
-caminho_logo_final = carregar_logo()
-
 # ---------------- ESTILO CSS PREMIUM & IMPRESSÃO ----------------
 st.markdown("""
 <style>
@@ -49,6 +32,11 @@ st.markdown("""
         border-radius: 8px;
         padding: 15px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        transition: transform 0.2s;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px); 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     
     /* TABELAS */
@@ -61,20 +49,43 @@ st.markdown("""
     }
     .block-container { padding-bottom: 60px; }
 
-    /* --- ESTILO DE IMPRESSÃO --- */
+    /* --- ESTILO DE IMPRESSÃO (PDF) --- */
     @media print {
         section[data-testid="stSidebar"], header, .footer, .stButton, button, .stDeployButton { display: none !important; }
-        body, .stApp { background-color: white !important; color: black !important; }
-        .block-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-        .plotly-graph-div { break-inside: avoid; }
+        
+        body, .stApp {
+            background-color: white !important;
+            color: black !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        
+        .block-container {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        .plotly-graph-div {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- JAVASCRIPT PARA IMPRESSÃO ----------------
 def print_button():
-    js = """<script>function printPage() {window.print();}</script>
-    <button onclick="printPage()" style="background-color: #2E7D32; color: white; border: none; padding: 10px 20px; width: 100%; margin-bottom: 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ Gerar Relatório PDF</button>"""
+    js = """
+    <script>
+        function printPage() { window.print(); }
+    </script>
+    <button onclick="printPage()" style="
+        background-color: #2E7D32; color: white; border: none; padding: 10px 20px; 
+        text-align: center; display: inline-block; font-size: 14px; margin: 4px 2px; 
+        cursor: pointer; border-radius: 5px; font-family: sans-serif; font-weight: bold; width: 100%; margin-bottom: 20px;
+    ">🖨️ Gerar Relatório PDF</button>
+    """
     components.html(js, height=60)
 
 # ==============================================================================
@@ -83,33 +94,61 @@ def print_button():
 with st.sidebar:
     print_button()
     
-    # LOGO (Com Fallback Online)
-    if caminho_logo_final:
-        st.image(caminho_logo_final, use_container_width=True)
+    # --- LOGO AUTOMÁTICA OU TEXTO ---
+    logo_path_local = "assets/logo.png"
+    if os.path.exists(logo_path_local):
+        st.image(logo_path_local, use_container_width=True)
     else:
-        # Ícone online se a imagem falhar mesmo assim
-        st.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
+        st.markdown("<h1 style='text-align: center; color: #2E7D32; margin-bottom: 20px;'>AgroExposure</h1>", unsafe_allow_html=True)
 
     st.markdown("<h3 style='margin-top: 5px;'>⚙️ Parâmetros da Safra</h3>", unsafe_allow_html=True)
     
+    # --- NOVO: STRESS TEST (CENÁRIO DE QUEBRA) ---
+    st.markdown("##### 🚨 Stress Test (Quebra)")
+    simular_quebra = st.toggle("Ativar Simulação de Quebra")
+    
+    fator_quebra = 0.0
+    if simular_quebra:
+        perc_quebra = st.slider("% de Quebra da Safra", 0, 90, 20, step=5, help="Reduz a produtividade esperada para simular seca ou pragas.")
+        fator_quebra = perc_quebra / 100.0
+        st.warning(f"Simulando uma perda de {perc_quebra}% na produção.")
+
+    st.markdown("---")
+
     # 1. Produção
     st.markdown("<p style='color:#2E7D32; font-weight:bold; margin-top:10px;'>1. Produção e Custo Operacional</p>", unsafe_allow_html=True)
     
     col_a1, col_a2 = st.columns(2)
-    area_propria = col_a1.number_input("Área Própria (ha)", value=2500, step=0)
-    area_arrendada = col_a2.number_input("Área Arrendada (ha)", value=500, step=0)
-    area_total = max(1, area_propria + area_arrendada)
+    with col_a1:
+        area_propria = st.number_input("Área Própria (ha)", value=2500, step=0)
+    with col_a2:
+        area_arrendada = st.number_input("Área Arrendada (ha)", value=500, step=0)
+    
+    area_total = area_propria + area_arrendada
+    if area_total == 0: area_total = 1 
+
     st.caption(f"📍 Área Plantada Total: **{area_total:,.0f} ha**")
 
-    produtividade = st.number_input("Produtividade Est. (sc/ha)", value=65.0, step=1.0)
+    # Lógica de Produtividade com Stress Test
+    produtividade_base = st.number_input("Produtividade Est. (sc/ha)", value=65.0, step=1.0)
+    
+    if simular_quebra:
+        produtividade = produtividade_base * (1 - fator_quebra)
+        st.markdown(f"**Produtividade Efetiva:** <span style='color:red'>{produtividade:.1f} sc/ha</span>", unsafe_allow_html=True)
+    else:
+        produtividade = produtividade_base
+        
     producao_total = area_total * produtividade
+    
     custo_ha_operacional = st.number_input("Custo Operacional (R$/ha)", value=6000.0, step=100.0)
     
     # 2. Comercialização
     st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>2. Comercialização</p>", unsafe_allow_html=True)
     perc_comercializado = st.slider("% Já Travado (Hedge)", 0, 100, 30)
+    
     vol_hedge = producao_total * (perc_comercializado/100)
     st.caption(f"📦 Volume Travado: {vol_hedge:,.0f} sc")
+    
     preco_medio_venda = st.number_input("Preço Médio Travado (R$/sc)", value=111.0, step=0.5)
     
     # 3. Mercado
@@ -119,25 +158,26 @@ with st.sidebar:
 
     # 4. Custeio
     st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>4. Financiamento & Terra</p>", unsafe_allow_html=True)
+    
     perc_financiado = st.number_input("% Custeio Financiado", value=30.0, step=5.0)
     taxa_juros_ano = st.number_input("Taxa de Juros ao Ano (%)", value=8.0, step=0.5)
-    c_d1, c_d2 = st.columns(2)
-    data_tomada = c_d1.date_input("Desembolso", value=date(2025, 9, 15))
-    data_pagamento = c_d2.date_input("Pagamento", value=date(2026, 4, 30))
+    col_d1, col_d2 = st.columns(2)
+    data_tomada = col_d1.date_input("Desembolso", value=date(2025, 9, 15))
+    data_pagamento = col_d2.date_input("Pagamento", value=date(2026, 4, 30))
+    
     st.markdown("<div style='margin-top:5px; font-weight:bold; font-size:12px; color:#555;'>Custo do Arrendamento</div>", unsafe_allow_html=True)
     arrendamento_sc_ha = st.number_input("Pagamento (sc/ha)", value=15.0, step=0.5)
     st.caption(f"Ref. Área Arrendada: {area_arrendada:,.0f} ha")
 
-    # 5. PERFIL DE PAGAMENTOS (REFORMULADO)
+    # 5. PERFIL DE PAGAMENTOS
     st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>5. Perfil de Pagamentos</p>", unsafe_allow_html=True)
     st.info("Distribuição dos custos no tempo:")
     
-    # Sliders de Categoria
     perc_insumos = st.slider("Insumos (Sementes/Quím/Fert)", 0, 100, 60)
     perc_colheita = st.slider("% Colheita & Frete", 0, 100, 20)
     perc_manutencao = max(0, 100 - perc_insumos - perc_colheita)
     
-    st.caption(f"Manutenção/Mão de Obra: {perc_manutencao}% (Mensal)")
+    st.markdown(f"<div style='font-size:12px; color:#333; background-color:#E8F5E9; padding:5px; border-radius:4px;'><b>Manutenção/Mão de Obra: {perc_manutencao}%</b> (Diluído mensalmente)</div>", unsafe_allow_html=True)
     
     # ESCALONAMENTO DE INSUMOS
     with st.expander("📅 Escalonar Pagto Insumos", expanded=False):
@@ -150,25 +190,24 @@ with st.sidebar:
         st.write("**Parcelas Futuras:**")
         
         col_p2a, col_p2b = st.columns([1, 1.5])
-        pct_parc2 = col_p2a.number_input("% Parc. 2", 0, 100, 25, step=5)
-        data_parc2 = col_p2b.date_input("Data Parc 2", value=date(2026, 4, 30))
+        pct_parc2 = col_p2a.number_input("% P2", 0, 100, 25, step=5)
+        data_parc2 = col_p2b.date_input("Data P2", value=date(2026, 4, 30))
         
         col_p3a, col_p3b = st.columns([1, 1.5])
-        pct_parc3 = col_p3a.number_input("% Parc. 3", 0, 100, 25, step=5)
-        data_parc3 = col_p3b.date_input("Data Parc 3", value=date(2026, 5, 30))
+        pct_parc3 = col_p3a.number_input("% P3", 0, 100, 25, step=5)
+        data_parc3 = col_p3b.date_input("Data P3", value=date(2026, 5, 30))
         
         # Validação simples
         total_parc = pct_entrada_insumo + pct_parc2 + pct_parc3
         if total_parc != 100:
             st.error(f"Total das parcelas: {total_parc}%. Ajuste para 100%.")
 
-    # Datas Operacionais
     c_op1, c_op2 = st.columns(2)
     mes_plantio = c_op1.selectbox("Mês Plantio", [9, 10, 11, 12], index=0, format_func=lambda x: f"Mês {x}")
     mes_colheita = c_op2.selectbox("Mês Colheita", [1, 2, 3, 4], index=2, format_func=lambda x: f"Mês {x}")
 
 # ==============================================================================
-# 2. CÁLCULOS (CORE)
+# 2. CÁLCULOS PRINCIPAIS (CORE)
 # ==============================================================================
 
 # A. Físico e Receita
@@ -184,46 +223,81 @@ preco_medio_ponderado = receita_bruta_total / producao_total if producao_total >
 
 # B. Custos Consolidados
 custo_operacional_total = area_total * custo_ha_operacional
+
 valor_base_financiamento = custo_operacional_total * (perc_financiado / 100)
 dias_financiamento = max(0, (data_pagamento - data_tomada).days)
 custo_financeiro_juros = valor_base_financiamento * ((taxa_juros_ano / 100) / 365) * dias_financiamento
+
 custo_arrendamento_reais = vol_arrendamento_sacas * preco_mercado
+
 custo_total_safra = custo_operacional_total + custo_financeiro_juros + custo_arrendamento_reais
 
-# C. Resultados
+# C. Resultados e KPIs
 lucro_operacional = receita_bruta_total - custo_operacional_total 
 fluxo_caixa_operacional = lucro_operacional - custo_financeiro_juros 
 lucro_liquido = receita_bruta_total - custo_total_safra
 margem_liquida_perc = (lucro_liquido / receita_bruta_total) * 100 if receita_bruta_total > 0 else 0
 
-# D. KPIs Unitários
 breakeven_sc_total = custo_total_safra / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
 breakeven_sc_ha = breakeven_sc_total / area_total
 margem_seguranca_sc_ha = produtividade - breakeven_sc_ha
+
 custo_sc_liquida = custo_total_safra / producao_liquida_sacas if producao_liquida_sacas > 0 else 0
+
 receita_alvo_total = custo_total_safra * (1 + margem_desejada / 100)
 preco_breakeven_saldo = (receita_alvo_total - receita_hedge) / qtd_aberta if qtd_aberta > 0 else 0
 
-# KPIs Específicos
+# KPIs Específicos para Análise Detalhada
 custo_ha_medio_op_fin = (custo_operacional_total + custo_financeiro_juros) / area_total
 custo_ha_area_arrendada = custo_ha_medio_op_fin + (arrendamento_sc_ha * preco_mercado)
 custo_ha_area_propria = custo_ha_medio_op_fin 
+
 juros_por_saca_reais = custo_financeiro_juros / producao_total if producao_total > 0 else 0
-juros_sc_ha = (custo_financeiro_juros / area_total) / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
+juros_reais_ha = custo_financeiro_juros / area_total
+juros_sc_ha = juros_reais_ha / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
 breakeven_sc_ha_spot = (custo_total_safra / preco_mercado) / area_total 
 
 # ==============================================================================
-# 3. DASHBOARD
+# 3. INTERFACE DASHBOARD
 # ==============================================================================
 st.title("📊 AgroExposure: Painel de Decisão Estratégica") 
 
 # KPI CARDS
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("🚜 Produção Líquida", f"{producao_liquida_sacas:,.0f} sc", delta=f"Total: {producao_total:,.0f} sc")
-c2.metric("📉 Custo Real (Liq)", f"R$ {custo_sc_liquida:,.2f} /sc", delta="Op + Juros + Arr", delta_color="inverse")
-c3.metric("🛑 Ponto de Equilíbrio", f"{breakeven_sc_ha:,.1f} sc/ha", delta=f"Margem: {margem_seguranca_sc_ha:.1f} sc/ha")
-lbl_delta = "Venda Favorável" if preco_breakeven_saldo < preco_mercado else "Preço Abaixo da Meta"
-c4.metric("🎯 Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
+with c1:
+    st.metric("🚜 Produção Líquida", f"{producao_liquida_sacas:,.0f} sc", delta=f"Total: {producao_total:,.0f} sc", help="Produção Total menos Pagamento de Arrendamento em produto")
+with c2:
+    st.metric("📉 Custo Real (Liq)", f"R$ {custo_sc_liquida:,.2f} /sc", delta="Op + Juros + Arr", delta_color="inverse", help="Custo Total dividido pelas sacas líquidas (que sobram)")
+with c3:
+    st.metric("🛑 Ponto de Equilíbrio", f"{breakeven_sc_ha:,.1f} sc/ha", delta=f"Margem: {margem_seguranca_sc_ha:.1f} sc/ha", delta_color="normal", help="Quanto você precisa colher para pagar TUDO (0x0)")
+with c4:
+    lbl_delta = "Venda Favorável" if preco_breakeven_saldo < preco_mercado else "Preço Abaixo da Meta"
+    st.metric("🎯 Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
+
+# --- NOVO: GAUGE DE META (VELOCÍMETRO) ---
+fig_gauge = go.Figure(go.Indicator(
+    mode = "gauge+number+delta",
+    value = margem_liquida_perc,
+    domain = {'x': [0, 1], 'y': [0, 1]},
+    title = {'text': "<b>Status da Meta de Margem</b>", 'font': {'size': 18, 'color': '#37474F'}},
+    delta = {'reference': margem_desejada, 'increasing': {'color': "#2E7D32"}},
+    gauge = {
+        'axis': {'range': [None, max(50, margem_desejada + 20)], 'tickwidth': 1, 'tickcolor': "#37474F"},
+        'bar': {'color': "#1B5E20"},
+        'bgcolor': "white",
+        'borderwidth': 2,
+        'bordercolor': "#CFD8DC",
+        'steps': [
+            {'range': [0, 0], 'color': '#FFEBEE'}, # Placeholder para visual limpo
+            {'range': [0, margem_desejada], 'color': '#E8F5E9'}],
+        'threshold': {
+            'line': {'color': "#FF9800", 'width': 4},
+            'thickness': 0.75,
+            'value': margem_desejada}
+    }
+))
+fig_gauge.update_layout(height=200, margin=dict(l=20,r=20,t=40,b=20), paper_bgcolor="rgba(0,0,0,0)", font={'family': "Arial"})
+st.plotly_chart(fig_gauge, use_container_width=True)
 
 st.markdown("---")
 
@@ -294,15 +368,18 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     
     # 1. Custo dos Insumos (Recurso Próprio)
     custo_insumos_total = custo_operacional_total * (perc_insumos/100)
+    
+    # Abate o que foi financiado
     custo_insumos_proprio = max(0, custo_insumos_total - valor_base_financiamento)
     saldo_financiamento = max(0, valor_base_financiamento - custo_insumos_total) # Se sobrou financiamento
     
     # Distribuição do Custo Próprio de Insumos (Escalonamento)
+    # Entrada (Plantio)
     idx_plantio = (mes_plantio - 9) if mes_plantio >= 9 else (mes_plantio + 3)
     if 0 <= idx_plantio < 12:
         saidas[idx_plantio] += custo_insumos_proprio * (pct_entrada_insumo/100)
         
-    # Parcela 2
+    # Parcela 2 (Data Fixa)
     mes_p2 = data_parc2.month
     ano_p2 = data_parc2.year
     for i, m in enumerate(meses_fluxo):
@@ -310,7 +387,7 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
             saidas[i] += custo_insumos_proprio * (pct_parc2/100)
             break
             
-    # Parcela 3
+    # Parcela 3 (Data Fixa)
     mes_p3 = data_parc3.month
     ano_p3 = data_parc3.year
     for i, m in enumerate(meses_fluxo):
@@ -318,7 +395,7 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
             saidas[i] += custo_insumos_proprio * (pct_parc3/100)
             break
 
-    # 2. Manutenção
+    # 2. Manutenção (Mensal)
     custo_manut_total = custo_operacional_total * (perc_manutencao/100)
     idx_colheita_arr = (mes_colheita - 9) if mes_colheita >= 9 else (mes_colheita + 3)
     duracao = max(1, idx_colheita_arr - idx_plantio + 1)
@@ -326,12 +403,13 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     
     for i in range(idx_plantio, idx_plantio + duracao):
         if 0 <= i < 12:
+            # Se ainda tem financiamento sobrando, usa ele. Se não, bolso.
             pago_banco = min(mensal_manut, saldo_financiamento)
             pago_bolso = mensal_manut - pago_banco
             saidas[i] += pago_bolso
             saldo_financiamento -= pago_banco
 
-    # 3. Colheita
+    # 3. Colheita (No mês)
     custo_colheita_total = custo_operacional_total * (perc_colheita/100)
     if 0 <= idx_colheita_arr < 12:
         pago_banco = min(custo_colheita_total, saldo_financiamento)
@@ -457,24 +535,57 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
 
 st.markdown("---")
 
-# --- INTELIGÊNCIA (ABAS) ---
+# --- INTELIGÊNCIA (ABAS ATUALIZADAS) ---
 st.markdown("### 🧠 Inteligência & Analytics")
-tab1, tab2, tab3 = st.tabs(["📅 Sazonalidade (CEPEA)", "🔮 Monte Carlo", "🤖 AI Advisor"])
+tab1, tab2, tab3, tab4 = st.tabs(["📦 Decisão Armazenagem", "📅 Sazonalidade", "🔮 Monte Carlo", "🤖 AI Advisor"])
 
+# --- NOVA ABA: DECISÃO DE CARREGAMENTO (CARRY) ---
 with tab1:
+    st.markdown("#### 📉 Calculadora de Carry (Vender Agora vs. Segurar)")
+    st.markdown("Vale a pena guardar a soja para vender mais caro depois?")
+    
+    col_c1, col_c2, col_c3 = st.columns(3)
+    custo_arm = col_c1.number_input("Custo Armazenagem (R$/sc/mês)", 0.0, 5.0, 0.80)
+    taxa_opp = col_c2.number_input("Custo Oportunidade (% a.m.)", 0.0, 5.0, 1.0, help="Quanto seu dinheiro renderia no banco (CDI)")
+    meses_carry = col_c3.slider("Meses Guardado", 1, 12, 4)
+    
+    preco_futuro_est = st.number_input(f"Preço Estimado Daqui a {meses_carry} Meses (R$/sc)", value=preco_mercado + 12.0)
+    
+    # Cálculo do Custo de Carregar
+    custo_fisico = custo_arm * meses_carry
+    custo_financeiro = preco_mercado * (taxa_opp/100) * meses_carry
+    custo_total_carry = custo_fisico + custo_financeiro
+    
+    # Preço Líquido Futuro (Descontado o custo de carregar)
+    preco_net_futuro = preco_futuro_est - custo_total_carry
+    resultado_carry = preco_net_futuro - preco_mercado
+    
+    st.markdown("---")
+    cm1, cm2, cm3 = st.columns(3)
+    cm1.metric("Custo Total de Carregar", f"R$ {custo_total_carry:.2f}/sc", delta="Armazém + Juros", delta_color="inverse")
+    cm2.metric("Preço Net Futuro", f"R$ {preco_net_futuro:.2f}/sc", help="Preço Futuro - Custo de Carregar")
+    
+    if resultado_carry > 0:
+        cm3.metric("Resultado da Decisão", f"GANHO DE R$ {resultado_carry:.2f}", delta="✅ Segurar Compensa")
+        st.success(f"**Recomendação:** O mercado futuro paga o custo de carregar e sobra **R$ {resultado_carry:.2f}** por saca.")
+    else:
+        cm3.metric("Resultado da Decisão", f"PERDA DE R$ {abs(resultado_carry):.2f}", delta="❌ Venda Agora", delta_color="inverse")
+        st.error(f"**Recomendação:** Não compensa guardar. O custo de carregar (R$ {custo_total_carry:.2f}) é maior que a valorização esperada.")
+
+with tab2:
     st.markdown("**Sazonalidade Histórica (Base Paranaguá)**")
     meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     indices_sazonais = [1.03, 1.01, 0.95, 0.94, 0.97, 0.99, 1.01, 1.03, 1.05, 1.07, 1.08, 1.05]
-    mes_atual = datetime.now().month - 1
-    fator_ajuste = preco_mercado / indices_sazonais[mes_atual]
+    fator_ajuste = preco_mercado / indices_sazonais[datetime.now().month - 1]
     precos_projetados = [idx * fator_ajuste for idx in indices_sazonais]
+    
     fig_saz = go.Figure()
     fig_saz.add_trace(go.Bar(x=meses, y=precos_projetados, name="Preço Projetado", marker_color='#81C784'))
     fig_saz.add_trace(go.Scatter(x=meses, y=precos_projetados, mode='lines+markers', line=dict(color='#2E7D32', width=2), name="Tendência"))
     fig_saz.update_layout(height=350, margin=dict(t=20, b=20), template="plotly_white", yaxis_tickprefix="R$ ")
     st.plotly_chart(fig_saz, use_container_width=True)
 
-with tab2:
+with tab3:
     st.markdown("**Simulação de Probabilidade (Monte Carlo)**")
     if st.button("🔄 Rodar Simulação"):
         cenarios_preco = np.random.normal(preco_mercado, preco_mercado * 0.18, 5000)
@@ -487,7 +598,7 @@ with tab2:
         fig_hist.add_vline(x=0, line_color="red")
         st.plotly_chart(fig_hist, use_container_width=True)
 
-with tab3:
+with tab4:
     st.markdown("### 🤖 Advisor Financeiro")
     peso_divida = (custo_financeiro_juros / receita_bruta_total) * 100 if receita_bruta_total > 0 else 0
     st.write(f"Os juros consomem **{peso_divida:.1f}%** da sua receita bruta.")
@@ -529,6 +640,6 @@ st.plotly_chart(fig_heat, use_container_width=True)
 
 st.markdown("""
 <div class="footer">
-    AgroExposure v5.2 (Cloud Ready & Cash Flow) · <b>Desenvolvido por João Cunha</b>
+    AgroExposure v6.0 (Strategic Storage & Stress Test) · <b>Desenvolvido por João Cunha</b>
 </div>
 """, unsafe_allow_html=True)
