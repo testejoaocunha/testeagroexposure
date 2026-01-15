@@ -14,37 +14,64 @@ st.set_page_config(
     page_icon="🌱"
 )
 
-# ---------------- RESOLUÇÃO DA LOGO ----------------
-diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-caminho_logo_real = os.path.join(diretorio_atual, "assets", "logo.png")
+# ---------------- RESOLUÇÃO ROBUSTA DA LOGO ----------------
+# Tenta diferentes caminhos para garantir que funcione local e na nuvem
+def carregar_logo():
+    caminhos_possiveis = [
+        "assets/logo.png",              # Caminho relativo padrão (Streamlit Cloud)
+        "./assets/logo.png",            # Relativo explícito
+        os.path.join(os.path.dirname(__file__), "assets", "logo.png"), # Absoluto dinâmico
+        "logo.png"                      # Caso esteja na raiz (backup)
+    ]
+    
+    for caminho in caminhos_possiveis:
+        if os.path.exists(caminho):
+            return caminho
+    return None
+
+caminho_logo_final = carregar_logo()
 
 # ---------------- ESTILO CSS PREMIUM & IMPRESSÃO ----------------
 st.markdown("""
 <style>
+    /* GERAL */
     .stApp { background-color: #F8F9FA; color: #31333F; }
+    
+    /* SIDEBAR */
     section[data-testid="stSidebar"] .block-container { padding-top: 1rem !important; padding-bottom: 2rem; }
     div[data-baseweb="input"] { background-color: #FFFFFF !important; border: 1px solid #CFD8DC !important; border-radius: 6px !important; }
+    
+    /* CARDS DE MÉTRICAS */
     div[data-testid="metric-container"] {
-        background-color: #EFF3F6; border: 1px solid #D1D5DB; border-left: 5px solid #2E7D32; 
-        border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        background-color: #EFF3F6; 
+        border: 1px solid #D1D5DB; 
+        border-left: 5px solid #2E7D32; 
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
     }
+    
+    /* TABELAS */
     .dataframe { font-size: 14px !important; font-family: 'Source Sans Pro', sans-serif; }
+    
+    /* RODAPÉ */
     .footer {
         position: fixed; left: 0; bottom: 0; width: 100%; background-color: #FFFFFF;
         color: #90A4AE; text-align: center; padding: 8px; border-top: 1px solid #EEEEEE; font-size: 12px; z-index: 100;
     }
     .block-container { padding-bottom: 60px; }
-    
+
+    /* --- ESTILO DE IMPRESSÃO --- */
     @media print {
         section[data-testid="stSidebar"], header, .footer, .stButton, button, .stDeployButton { display: none !important; }
         body, .stApp { background-color: white !important; color: black !important; }
-        .block-container { max-width: 100% !important; padding: 0 !important; }
+        .block-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
         .plotly-graph-div { break-inside: avoid; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- JAVASCRIPT IMPRESSÃO ----------------
+# ---------------- JAVASCRIPT PARA IMPRESSÃO ----------------
 def print_button():
     js = """<script>function printPage() {window.print();}</script>
     <button onclick="printPage()" style="background-color: #2E7D32; color: white; border: none; padding: 10px 20px; width: 100%; margin-bottom: 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ Gerar Relatório PDF</button>"""
@@ -55,18 +82,24 @@ def print_button():
 # ==============================================================================
 with st.sidebar:
     print_button()
-    if os.path.exists(caminho_logo_real): st.image(caminho_logo_real, use_container_width=True)
-    else: st.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
+    
+    # LOGO (Com Fallback Online)
+    if caminho_logo_final:
+        st.image(caminho_logo_final, use_container_width=True)
+    else:
+        # Ícone online se a imagem falhar mesmo assim
+        st.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
 
     st.markdown("<h3 style='margin-top: 5px;'>⚙️ Parâmetros da Safra</h3>", unsafe_allow_html=True)
     
     # 1. Produção
     st.markdown("<p style='color:#2E7D32; font-weight:bold; margin-top:10px;'>1. Produção e Custo Operacional</p>", unsafe_allow_html=True)
-    c_a1, c_a2 = st.columns(2)
-    area_propria = c_a1.number_input("Área Própria (ha)", value=2500, step=0)
-    area_arrendada = c_a2.number_input("Área Arrendada (ha)", value=500, step=0)
+    
+    col_a1, col_a2 = st.columns(2)
+    area_propria = col_a1.number_input("Área Própria (ha)", value=2500, step=0)
+    area_arrendada = col_a2.number_input("Área Arrendada (ha)", value=500, step=0)
     area_total = max(1, area_propria + area_arrendada)
-    st.caption(f"📍 Área Total: **{area_total:,.0f} ha**")
+    st.caption(f"📍 Área Plantada Total: **{area_total:,.0f} ha**")
 
     produtividade = st.number_input("Produtividade Est. (sc/ha)", value=65.0, step=1.0)
     producao_total = area_total * produtividade
@@ -89,8 +122,8 @@ with st.sidebar:
     perc_financiado = st.number_input("% Custeio Financiado", value=30.0, step=5.0)
     taxa_juros_ano = st.number_input("Taxa de Juros ao Ano (%)", value=8.0, step=0.5)
     c_d1, c_d2 = st.columns(2)
-    data_tomada = c_d1.date_input("Desembolso (Bco)", value=date(2025, 9, 15))
-    data_pagamento = c_d2.date_input("Pagamento (Bco)", value=date(2026, 4, 30))
+    data_tomada = c_d1.date_input("Desembolso", value=date(2025, 9, 15))
+    data_pagamento = c_d2.date_input("Pagamento", value=date(2026, 4, 30))
     st.markdown("<div style='margin-top:5px; font-weight:bold; font-size:12px; color:#555;'>Custo do Arrendamento</div>", unsafe_allow_html=True)
     arrendamento_sc_ha = st.number_input("Pagamento (sc/ha)", value=15.0, step=0.5)
     st.caption(f"Ref. Área Arrendada: {area_arrendada:,.0f} ha")
@@ -213,7 +246,7 @@ with st.expander("⚖️ Simulador de Negociação (What-If)", expanded=False):
 
 st.markdown("---")
 
-# --- GRÁFICOS (RISCO E PREÇO) ---
+# --- GRÁFICOS PRINCIPAIS ---
 col_left, col_right = st.columns([1, 1])
 
 with col_left:
@@ -261,20 +294,15 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     
     # 1. Custo dos Insumos (Recurso Próprio)
     custo_insumos_total = custo_operacional_total * (perc_insumos/100)
-    
-    # Abate o que foi financiado
-    # Se financiou 300k e insumo custa 600k, sobra 300k pra pagar com recurso próprio
-    # Se financiou 600k e insumo custa 600k, sobra 0.
     custo_insumos_proprio = max(0, custo_insumos_total - valor_base_financiamento)
     saldo_financiamento = max(0, valor_base_financiamento - custo_insumos_total) # Se sobrou financiamento
     
     # Distribuição do Custo Próprio de Insumos (Escalonamento)
-    # Entrada (Plantio)
     idx_plantio = (mes_plantio - 9) if mes_plantio >= 9 else (mes_plantio + 3)
     if 0 <= idx_plantio < 12:
         saidas[idx_plantio] += custo_insumos_proprio * (pct_entrada_insumo/100)
         
-    # Parcela 2 (Data Fixa)
+    # Parcela 2
     mes_p2 = data_parc2.month
     ano_p2 = data_parc2.year
     for i, m in enumerate(meses_fluxo):
@@ -282,7 +310,7 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
             saidas[i] += custo_insumos_proprio * (pct_parc2/100)
             break
             
-    # Parcela 3 (Data Fixa)
+    # Parcela 3
     mes_p3 = data_parc3.month
     ano_p3 = data_parc3.year
     for i, m in enumerate(meses_fluxo):
@@ -290,7 +318,7 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
             saidas[i] += custo_insumos_proprio * (pct_parc3/100)
             break
 
-    # 2. Manutenção (Mensal)
+    # 2. Manutenção
     custo_manut_total = custo_operacional_total * (perc_manutencao/100)
     idx_colheita_arr = (mes_colheita - 9) if mes_colheita >= 9 else (mes_colheita + 3)
     duracao = max(1, idx_colheita_arr - idx_plantio + 1)
@@ -298,13 +326,12 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     
     for i in range(idx_plantio, idx_plantio + duracao):
         if 0 <= i < 12:
-            # Se ainda tem financiamento sobrando, usa ele. Se não, bolso.
             pago_banco = min(mensal_manut, saldo_financiamento)
             pago_bolso = mensal_manut - pago_banco
             saidas[i] += pago_bolso
             saldo_financiamento -= pago_banco
 
-    # 3. Colheita (No mês)
+    # 3. Colheita
     custo_colheita_total = custo_operacional_total * (perc_colheita/100)
     if 0 <= idx_colheita_arr < 12:
         pago_banco = min(custo_colheita_total, saldo_financiamento)
@@ -353,16 +380,10 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     st.markdown("#### 📉 Planejamento de Vendas (Necessidade de Caixa)")
     st.markdown("Quantas sacas você precisa vender em cada mês para cobrir as contas daquele mês?")
     
-    # Calcular necessidade de venda mês a mês
     necessidade_venda = []
     
     for i in range(12):
-        saida_mes = saidas[i]
-        entrada_mes = entradas[i]
-        
-        # Se a saída for maior que a entrada (Gap de Caixa), sugerir venda
-        gap = saida_mes - entrada_mes
-        
+        gap = saidas[i] - entradas[i]
         if gap > 0:
             sacas_nec = gap / preco_mercado
             perc_prod = (sacas_nec / producao_total) * 100
@@ -506,4 +527,8 @@ fig_heat.add_annotation(x=preco_medio_ponderado, y=produtividade, text="VOCÊ", 
 fig_heat.update_layout(title="Margem Líquida por Hectare (R$/ha)", xaxis_title="Preço (R$/sc)", yaxis_title="Produtividade (sc/ha)", height=600)
 st.plotly_chart(fig_heat, use_container_width=True)
 
-st.markdown("""<div class="footer">AgroExposure v5.1 (Cash Flow & Sales Plan) · <b>Desenvolvido por João Cunha</b></div>""", unsafe_allow_html=True)
+st.markdown("""
+<div class="footer">
+    AgroExposure v5.2 (Cloud Ready & Cash Flow) · <b>Desenvolvido por João Cunha</b>
+</div>
+""", unsafe_allow_html=True)
