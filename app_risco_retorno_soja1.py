@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import streamlit.components.v1 as components
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 # ---------------- CONFIGURAÇÃO DA PÁGINA ----------------
 st.set_page_config(
@@ -13,82 +14,69 @@ st.set_page_config(
     page_icon="🌱"
 )
 
-# ---------------- ESTILO CSS PREMIUM ----------------
+# ---------------- RESOLUÇÃO DA LOGO ----------------
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+caminho_logo_real = os.path.join(diretorio_atual, "assets", "logo.png")
+
+# ---------------- ESTILO CSS PREMIUM & IMPRESSÃO ----------------
 st.markdown("""
 <style>
-    /* GERAL */
     .stApp { background-color: #F8F9FA; color: #31333F; }
-    
-    /* SIDEBAR */
     section[data-testid="stSidebar"] .block-container { padding-top: 1rem !important; padding-bottom: 2rem; }
     div[data-baseweb="input"] { background-color: #FFFFFF !important; border: 1px solid #CFD8DC !important; border-radius: 6px !important; }
-    
-    /* CARDS DE MÉTRICAS */
     div[data-testid="metric-container"] {
-        background-color: #EFF3F6; 
-        border: 1px solid #D1D5DB; 
-        border-left: 5px solid #2E7D32; 
-        border-radius: 8px;
-        padding: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-        transition: transform 0.2s;
+        background-color: #EFF3F6; border: 1px solid #D1D5DB; border-left: 5px solid #2E7D32; 
+        border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
     }
-    div[data-testid="metric-container"]:hover {
-        transform: translateY(-2px); 
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    /* TABELAS */
     .dataframe { font-size: 14px !important; font-family: 'Source Sans Pro', sans-serif; }
-    
-    /* RODAPÉ */
     .footer {
         position: fixed; left: 0; bottom: 0; width: 100%; background-color: #FFFFFF;
         color: #90A4AE; text-align: center; padding: 8px; border-top: 1px solid #EEEEEE; font-size: 12px; z-index: 100;
     }
     .block-container { padding-bottom: 60px; }
+    
+    @media print {
+        section[data-testid="stSidebar"], header, .footer, .stButton, button, .stDeployButton { display: none !important; }
+        body, .stApp { background-color: white !important; color: black !important; }
+        .block-container { max-width: 100% !important; padding: 0 !important; }
+        .plotly-graph-div { break-inside: avoid; }
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------- JAVASCRIPT IMPRESSÃO ----------------
+def print_button():
+    js = """<script>function printPage() {window.print();}</script>
+    <button onclick="printPage()" style="background-color: #2E7D32; color: white; border: none; padding: 10px 20px; width: 100%; margin-bottom: 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ Gerar Relatório PDF</button>"""
+    components.html(js, height=60)
 
 # ==============================================================================
 # 1. BARRA LATERAL (INPUTS)
 # ==============================================================================
 with st.sidebar:
-    caminho_logo = "assets/logo.png"
-    if os.path.exists(caminho_logo):
-        st.image(caminho_logo, use_container_width=True)
-    else:
-        st.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
+    print_button()
+    if os.path.exists(caminho_logo_real): st.image(caminho_logo_real, use_container_width=True)
+    else: st.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
 
     st.markdown("<h3 style='margin-top: 5px;'>⚙️ Parâmetros da Safra</h3>", unsafe_allow_html=True)
     
     # 1. Produção
     st.markdown("<p style='color:#2E7D32; font-weight:bold; margin-top:10px;'>1. Produção e Custo Operacional</p>", unsafe_allow_html=True)
-    
-    col_a1, col_a2 = st.columns(2)
-    with col_a1:
-        area_propria = st.number_input("Área Própria (ha)", value=2500, step=0)
-    with col_a2:
-        area_arrendada = st.number_input("Área Arrendada (ha)", value=0, step=0)
-    
-    area_total = area_propria + area_arrendada
-    # Evitar divisão por zero se o usuário zerar tudo
-    if area_total == 0: area_total = 1 
-
-    st.caption(f"📍 Área Plantada Total: **{area_total:,.0f} ha**")
+    c_a1, c_a2 = st.columns(2)
+    area_propria = c_a1.number_input("Área Própria (ha)", value=2500, step=0)
+    area_arrendada = c_a2.number_input("Área Arrendada (ha)", value=500, step=0)
+    area_total = max(1, area_propria + area_arrendada)
+    st.caption(f"📍 Área Total: **{area_total:,.0f} ha**")
 
     produtividade = st.number_input("Produtividade Est. (sc/ha)", value=65.0, step=1.0)
     producao_total = area_total * produtividade
-    
     custo_ha_operacional = st.number_input("Custo Operacional (R$/ha)", value=6000.0, step=100.0)
     
     # 2. Comercialização
     st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>2. Comercialização</p>", unsafe_allow_html=True)
     perc_comercializado = st.slider("% Já Travado (Hedge)", 0, 100, 30)
-    
     vol_hedge = producao_total * (perc_comercializado/100)
     st.caption(f"📦 Volume Travado: {vol_hedge:,.0f} sc")
-    
     preco_medio_venda = st.number_input("Preço Médio Travado (R$/sc)", value=111.0, step=0.5)
     
     # 3. Mercado
@@ -97,27 +85,63 @@ with st.sidebar:
     margem_desejada = st.slider("Margem Alvo (%)", 0, 50, 20)
 
     # 4. Custeio
-    st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>4. Custeio (Financ. & Arrend.)</p>", unsafe_allow_html=True)
-    
+    st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>4. Financiamento & Terra</p>", unsafe_allow_html=True)
     perc_financiado = st.number_input("% Custeio Financiado", value=30.0, step=5.0)
     taxa_juros_ano = st.number_input("Taxa de Juros ao Ano (%)", value=8.0, step=0.5)
-    col_d1, col_d2 = st.columns(2)
-    data_desembolso = col_d1.date_input("Desembolso", value=date(2025, 8, 10))
-    data_pagamento = col_d2.date_input("Pagamento", value=date(2026, 4, 30))
-    
+    c_d1, c_d2 = st.columns(2)
+    data_tomada = c_d1.date_input("Desembolso (Bco)", value=date(2025, 9, 15))
+    data_pagamento = c_d2.date_input("Pagamento (Bco)", value=date(2026, 4, 30))
     st.markdown("<div style='margin-top:5px; font-weight:bold; font-size:12px; color:#555;'>Custo do Arrendamento</div>", unsafe_allow_html=True)
     arrendamento_sc_ha = st.number_input("Pagamento (sc/ha)", value=15.0, step=0.5)
     st.caption(f"Ref. Área Arrendada: {area_arrendada:,.0f} ha")
 
+    # 5. PERFIL DE PAGAMENTOS (REFORMULADO)
+    st.markdown("<hr style='margin: 10px 0;'><p style='color:#2E7D32; font-weight:bold;'>5. Perfil de Pagamentos</p>", unsafe_allow_html=True)
+    st.info("Distribuição dos custos no tempo:")
+    
+    # Sliders de Categoria
+    perc_insumos = st.slider("Insumos (Sementes/Quím/Fert)", 0, 100, 60)
+    perc_colheita = st.slider("% Colheita & Frete", 0, 100, 20)
+    perc_manutencao = max(0, 100 - perc_insumos - perc_colheita)
+    
+    st.caption(f"Manutenção/Mão de Obra: {perc_manutencao}% (Mensal)")
+    
+    # ESCALONAMENTO DE INSUMOS
+    with st.expander("📅 Escalonar Pagto Insumos", expanded=False):
+        st.write("Defina como pagará a parte dos insumos que sai do seu bolso (não financiada):")
+        
+        col_parc1, col_parc2 = st.columns(2)
+        pct_entrada_insumo = col_parc1.number_input("% Entrada/Plantio", 0, 100, 50, step=10)
+        
+        st.markdown("---")
+        st.write("**Parcelas Futuras:**")
+        
+        col_p2a, col_p2b = st.columns([1, 1.5])
+        pct_parc2 = col_p2a.number_input("% Parc. 2", 0, 100, 25, step=5)
+        data_parc2 = col_p2b.date_input("Data Parc 2", value=date(2026, 4, 30))
+        
+        col_p3a, col_p3b = st.columns([1, 1.5])
+        pct_parc3 = col_p3a.number_input("% Parc. 3", 0, 100, 25, step=5)
+        data_parc3 = col_p3b.date_input("Data Parc 3", value=date(2026, 5, 30))
+        
+        # Validação simples
+        total_parc = pct_entrada_insumo + pct_parc2 + pct_parc3
+        if total_parc != 100:
+            st.error(f"Total das parcelas: {total_parc}%. Ajuste para 100%.")
+
+    # Datas Operacionais
+    c_op1, c_op2 = st.columns(2)
+    mes_plantio = c_op1.selectbox("Mês Plantio", [9, 10, 11, 12], index=0, format_func=lambda x: f"Mês {x}")
+    mes_colheita = c_op2.selectbox("Mês Colheita", [1, 2, 3, 4], index=2, format_func=lambda x: f"Mês {x}")
+
 # ==============================================================================
-# 2. CÁLCULOS PRINCIPAIS (CORE)
+# 2. CÁLCULOS (CORE)
 # ==============================================================================
 
-# A. Cálculos Físicos
+# A. Físico e Receita
 vol_arrendamento_sacas = area_arrendada * arrendamento_sc_ha
 producao_liquida_sacas = producao_total - vol_arrendamento_sacas 
 
-# B. Receitas
 qtd_vendida = producao_total * (perc_comercializado / 100)
 receita_hedge = qtd_vendida * preco_medio_venda
 qtd_aberta = producao_total - qtd_vendida
@@ -125,64 +149,48 @@ receita_spot = qtd_aberta * preco_mercado
 receita_bruta_total = receita_hedge + receita_spot
 preco_medio_ponderado = receita_bruta_total / producao_total if producao_total > 0 else 0
 
-# C. Custos
+# B. Custos Consolidados
 custo_operacional_total = area_total * custo_ha_operacional
-
 valor_base_financiamento = custo_operacional_total * (perc_financiado / 100)
-dias_financiamento = (data_pagamento - data_desembolso).days
-dias_financiamento = max(0, dias_financiamento)
+dias_financiamento = max(0, (data_pagamento - data_tomada).days)
 custo_financeiro_juros = valor_base_financiamento * ((taxa_juros_ano / 100) / 365) * dias_financiamento
-
 custo_arrendamento_reais = vol_arrendamento_sacas * preco_mercado
-
 custo_total_safra = custo_operacional_total + custo_financeiro_juros + custo_arrendamento_reais
 
-# D. Resultados
+# C. Resultados
 lucro_operacional = receita_bruta_total - custo_operacional_total 
 fluxo_caixa_operacional = lucro_operacional - custo_financeiro_juros 
 lucro_liquido = receita_bruta_total - custo_total_safra
 margem_liquida_perc = (lucro_liquido / receita_bruta_total) * 100 if receita_bruta_total > 0 else 0
 
-# E. KPIs Avançados (Breakeven)
+# D. KPIs Unitários
 breakeven_sc_total = custo_total_safra / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
 breakeven_sc_ha = breakeven_sc_total / area_total
 margem_seguranca_sc_ha = produtividade - breakeven_sc_ha
-
 custo_sc_liquida = custo_total_safra / producao_liquida_sacas if producao_liquida_sacas > 0 else 0
-
 receita_alvo_total = custo_total_safra * (1 + margem_desejada / 100)
-receita_faltante = receita_alvo_total - receita_hedge
-preco_breakeven_saldo = receita_faltante / qtd_aberta if qtd_aberta > 0 else 0
+preco_breakeven_saldo = (receita_alvo_total - receita_hedge) / qtd_aberta if qtd_aberta > 0 else 0
 
-# NOVOS KPIs ESPECÍFICOS (CÁLCULOS EXTRAS)
+# KPIs Específicos
 custo_ha_medio_op_fin = (custo_operacional_total + custo_financeiro_juros) / area_total
 custo_ha_area_arrendada = custo_ha_medio_op_fin + (arrendamento_sc_ha * preco_mercado)
 custo_ha_area_propria = custo_ha_medio_op_fin 
-
 juros_por_saca_reais = custo_financeiro_juros / producao_total if producao_total > 0 else 0
-
-# Correção do cálculo do impacto físico dos juros (sc/ha)
-juros_reais_ha = custo_financeiro_juros / area_total
-juros_sc_ha = juros_reais_ha / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
-
+juros_sc_ha = (custo_financeiro_juros / area_total) / preco_medio_ponderado if preco_medio_ponderado > 0 else 0
 breakeven_sc_ha_spot = (custo_total_safra / preco_mercado) / area_total 
 
 # ==============================================================================
-# 3. INTERFACE DASHBOARD
+# 3. DASHBOARD
 # ==============================================================================
 st.title("📊 AgroExposure: Painel de Decisão Estratégica") 
 
-# --- KPIs SUPERIORES ---
+# KPI CARDS
 c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.metric("🚜 Produção Líquida", f"{producao_liquida_sacas:,.0f} sc", delta=f"Total: {producao_total:,.0f} sc", help="Produção Total menos Pagamento de Arrendamento em produto")
-with c2:
-    st.metric("📉 Custo Real (Liq)", f"R$ {custo_sc_liquida:,.2f} /sc", delta="Op + Juros + Arr", delta_color="inverse", help="Custo Total dividido pelas sacas líquidas (que sobram)")
-with c3:
-    st.metric("🛑 Ponto de Equilíbrio", f"{breakeven_sc_ha:,.1f} sc/ha", delta=f"Margem: {margem_seguranca_sc_ha:.1f} sc/ha", delta_color="normal", help="Quanto você precisa colher para pagar TUDO (0x0)")
-with c4:
-    lbl_delta = "Venda Favorável" if preco_breakeven_saldo < preco_mercado else "Preço Abaixo da Meta"
-    st.metric("🎯 Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
+c1.metric("🚜 Produção Líquida", f"{producao_liquida_sacas:,.0f} sc", delta=f"Total: {producao_total:,.0f} sc")
+c2.metric("📉 Custo Real (Liq)", f"R$ {custo_sc_liquida:,.2f} /sc", delta="Op + Juros + Arr", delta_color="inverse")
+c3.metric("🛑 Ponto de Equilíbrio", f"{breakeven_sc_ha:,.1f} sc/ha", delta=f"Margem: {margem_seguranca_sc_ha:.1f} sc/ha")
+lbl_delta = "Venda Favorável" if preco_breakeven_saldo < preco_mercado else "Preço Abaixo da Meta"
+c4.metric("🎯 Preço Alvo Saldo", f"R$ {preco_breakeven_saldo:,.2f}", delta=lbl_delta, delta_color="inverse")
 
 st.markdown("---")
 
@@ -241,126 +249,157 @@ with col_right:
     fig_sens.update_layout(xaxis_title="Preço Soja (R$)", yaxis_title="Margem Líquida (%)", height=350, template="plotly_white")
     st.plotly_chart(fig_sens, use_container_width=True)
 
-# --- DRE GERENCIAL (LÓGICA CORRIGIDA PARA ÁREA PRÓPRIA) ---
+# --- FLUXO DE CAIXA INTELIGENTE (ATUALIZADO COM ESCALONAMENTO) ---
+st.markdown("### 💸 Fluxo de Caixa Projetado (Liquidez)")
+with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
+    # Setup de Datas
+    meses_fluxo = pd.date_range(start=date(2025, 9, 1), periods=12, freq='M')
+    nomes_meses = [d.strftime("%b/%y") for d in meses_fluxo]
+    
+    entradas = np.zeros(12)
+    saidas = np.zeros(12) 
+    
+    # 1. Custo dos Insumos (Recurso Próprio)
+    custo_insumos_total = custo_operacional_total * (perc_insumos/100)
+    
+    # Abate o que foi financiado
+    # Se financiou 300k e insumo custa 600k, sobra 300k pra pagar com recurso próprio
+    # Se financiou 600k e insumo custa 600k, sobra 0.
+    custo_insumos_proprio = max(0, custo_insumos_total - valor_base_financiamento)
+    saldo_financiamento = max(0, valor_base_financiamento - custo_insumos_total) # Se sobrou financiamento
+    
+    # Distribuição do Custo Próprio de Insumos (Escalonamento)
+    # Entrada (Plantio)
+    idx_plantio = (mes_plantio - 9) if mes_plantio >= 9 else (mes_plantio + 3)
+    if 0 <= idx_plantio < 12:
+        saidas[idx_plantio] += custo_insumos_proprio * (pct_entrada_insumo/100)
+        
+    # Parcela 2 (Data Fixa)
+    mes_p2 = data_parc2.month
+    ano_p2 = data_parc2.year
+    for i, m in enumerate(meses_fluxo):
+        if m.month == mes_p2 and m.year == ano_p2:
+            saidas[i] += custo_insumos_proprio * (pct_parc2/100)
+            break
+            
+    # Parcela 3 (Data Fixa)
+    mes_p3 = data_parc3.month
+    ano_p3 = data_parc3.year
+    for i, m in enumerate(meses_fluxo):
+        if m.month == mes_p3 and m.year == ano_p3:
+            saidas[i] += custo_insumos_proprio * (pct_parc3/100)
+            break
+
+    # 2. Manutenção (Mensal)
+    custo_manut_total = custo_operacional_total * (perc_manutencao/100)
+    idx_colheita_arr = (mes_colheita - 9) if mes_colheita >= 9 else (mes_colheita + 3)
+    duracao = max(1, idx_colheita_arr - idx_plantio + 1)
+    mensal_manut = custo_manut_total / duracao
+    
+    for i in range(idx_plantio, idx_plantio + duracao):
+        if 0 <= i < 12:
+            # Se ainda tem financiamento sobrando, usa ele. Se não, bolso.
+            pago_banco = min(mensal_manut, saldo_financiamento)
+            pago_bolso = mensal_manut - pago_banco
+            saidas[i] += pago_bolso
+            saldo_financiamento -= pago_banco
+
+    # 3. Colheita (No mês)
+    custo_colheita_total = custo_operacional_total * (perc_colheita/100)
+    if 0 <= idx_colheita_arr < 12:
+        pago_banco = min(custo_colheita_total, saldo_financiamento)
+        pago_bolso = custo_colheita_total - pago_banco
+        saidas[idx_colheita_arr] += pago_bolso
+        saldo_financiamento -= pago_banco
+
+    # 4. Pagamento do Financiamento
+    if valor_base_financiamento > 0:
+        mes_pg = data_pagamento.month
+        ano_pg = data_pagamento.year
+        for i, m in enumerate(meses_fluxo):
+            if m.month == mes_pg and m.year == ano_pg:
+                saidas[i] += (valor_base_financiamento + custo_financeiro_juros)
+                break
+    
+    # 5. Arrendamento
+    if area_arrendada > 0:
+        idx_arr = min(11, idx_colheita_arr + 1)
+        saidas[idx_arr] += custo_arrendamento_reais
+
+    # 6. Entradas
+    if 0 <= idx_colheita_arr < 12:
+        entradas[idx_colheita_arr] += receita_hedge
+    idx_spot = min(11, idx_colheita_arr + 3)
+    entradas[idx_spot] += receita_spot
+
+    # Gráfico
+    saldo_acumulado = np.cumsum(entradas - saidas)
+    
+    fig_fluxo = go.Figure()
+    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=entradas, name='Entradas (Vendas)', marker_color='#66BB6A'))
+    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=-saidas, name='Saídas (Desembolso)', marker_color='#EF5350'))
+    fig_fluxo.add_trace(go.Scatter(x=nomes_meses, y=saldo_acumulado, name='Saldo Acumulado', mode='lines+markers', line=dict(color='#1565C0', width=3)))
+    fig_fluxo.add_shape(type="line", x0=-0.5, x1=11.5, y0=0, y1=0, line=dict(color="black", width=1))
+    fig_fluxo.update_layout(title="Fluxo de Caixa (Considerando Escalonamento)", barmode='relative', height=400, template="plotly_white")
+    st.plotly_chart(fig_fluxo, use_container_width=True)
+    
+    min_caixa = min(saldo_acumulado)
+    if min_caixa < 0:
+        st.error(f"⚠️ **Atenção ao Caixa:** Ponto mínimo de **R$ {min_caixa:,.2f}**. Planeje capital de giro.")
+    else:
+        st.success("✅ **Fluxo Saudável:** Caixa positivo durante todo o ciclo.")
+
+    # --- NOVO: PLANEJAMENTO DE VENDAS (CURVA NECESSÁRIA) ---
+    st.markdown("#### 📉 Planejamento de Vendas (Necessidade de Caixa)")
+    st.markdown("Quantas sacas você precisa vender em cada mês para cobrir as contas daquele mês?")
+    
+    # Calcular necessidade de venda mês a mês
+    necessidade_venda = []
+    
+    for i in range(12):
+        saida_mes = saidas[i]
+        entrada_mes = entradas[i]
+        
+        # Se a saída for maior que a entrada (Gap de Caixa), sugerir venda
+        gap = saida_mes - entrada_mes
+        
+        if gap > 0:
+            sacas_nec = gap / preco_mercado
+            perc_prod = (sacas_nec / producao_total) * 100
+            necessidade_venda.append([nomes_meses[i], f"R$ {gap:,.0f}", f"{sacas_nec:,.0f} sc", f"{perc_prod:.1f}%"])
+    
+    if len(necessidade_venda) > 0:
+        df_vendas = pd.DataFrame(necessidade_venda, columns=["Mês", "Déficit de Caixa", "Sacas Necessárias (Spot)", "% da Produção"])
+        st.dataframe(df_vendas, use_container_width=True, hide_index=True)
+        st.caption("*Cálculo baseado no preço de mercado atual para cobrir o déficit mensal.")
+    else:
+        st.info("Suas receitas atuais já cobrem os custos mês a mês. Nenhuma venda adicional forçada por caixa é necessária.")
+
+st.markdown("---")
+
+# --- DRE GERENCIAL DETALHADO ---
 st.markdown("### 📋 DRE Gerencial de Decisão (Visão Econômica)")
 
 with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=True):
-    # Lógica para tratamento de arrendamento zerado
     desc_custo_terra = f"Ref. {area_arrendada:.0f} ha arrendados ({arrendamento_sc_ha} sc/ha)" if area_arrendada > 0 else "Sem área arrendada"
-    
-    # Preparando valores condicionais (se arrendamento > 0 mostra custo, senão -)
     custo_arr_indicador = custo_ha_area_arrendada if area_arrendada > 0 else 0
     custo_arr_eqv = (custo_ha_area_arrendada / preco_medio_ponderado) if area_arrendada > 0 else 0
     
     dados_dre_pro = [
-        # GRUPO DE RECEITA
-        {
-            "Grupo": "1. RECEITA BRUTA",
-            "Descrição": f"Venda Total ({produtividade} sc/ha x Preço Médio R$ {preco_medio_ponderado:.2f})",
-            "Valor Total (R$)": receita_bruta_total,
-            "Indicador (R$/ha)": receita_bruta_total / area_total,
-            "Eqv. (sc/ha)": produtividade
-        },
-        # GRUPO CUSTO OPERACIONAL
-        {
-            "Grupo": "2. (-) CUSTO OPERACIONAL",
-            "Descrição": f"Custo aplicado na Área Total ({area_total:,.0f} ha)",
-            "Valor Total (R$)": -custo_operacional_total,
-            "Indicador (R$/ha)": -custo_operacional_total / area_total,
-            "Eqv. (sc/ha)": -(custo_operacional_total / area_total) / preco_medio_ponderado
-        },
-        # GRUPO MARGEM CONTRIBUIÇÃO
-        {
-            "Grupo": "3. (=) RESULTADO OPERACIONAL (EBITDA)",
-            "Descrição": "Geração de Caixa da Atividade Agrícola",
-            "Valor Total (R$)": lucro_operacional,
-            "Indicador (R$/ha)": lucro_operacional / area_total,
-            "Eqv. (sc/ha)": (lucro_operacional / area_total) / preco_medio_ponderado
-        },
-        # GRUPO CUSTO FINANCEIRO
-        {
-            "Grupo": "4. (-) CUSTO FINANCEIRO (JUROS)",
-            "Descrição": f"Total de Juros do Período ({dias_financiamento} dias)",
-            "Valor Total (R$)": -custo_financeiro_juros,
-            "Indicador (R$/ha)": -custo_financeiro_juros / area_total,
-            "Eqv. (sc/ha)": -juros_sc_ha 
-        },
-        # LINHA EXTRA DE DETALHE DE JUROS
-        {
-            "Grupo": "   ↳ Impacto dos Juros (Unitário)",
-            "Descrição": "Custo financeiro por cada saca produzida",
-            "Valor Total (R$)": f"R$ {juros_por_saca_reais:.2f} /sc",
-            "Indicador (R$/ha)": "-",
-            "Eqv. (sc/ha)": f"{(juros_sc_ha/produtividade * -1):.2f} sc/sc" # % da saca comida pelo juro
-        },
-        # FLUXO DE CAIXA OPERACIONAL
-        {
-            "Grupo": "5. (=) FLUXO DE CAIXA OPERACIONAL",
-            "Descrição": "Resultado após pagar operação e bancos",
-            "Valor Total (R$)": fluxo_caixa_operacional,
-            "Indicador (R$/ha)": fluxo_caixa_operacional / area_total,
-            "Eqv. (sc/ha)": (fluxo_caixa_operacional / area_total) / preco_medio_ponderado
-        },
-        # GRUPO CUSTO TERRA
-        {
-            "Grupo": "6. (-) CUSTO DA TERRA (ARRENDAMENTO)",
-            "Descrição": desc_custo_terra,
-            "Valor Total (R$)": -custo_arrendamento_reais,
-            "Indicador (R$/ha)": -custo_arrendamento_reais / area_total,
-            "Eqv. (sc/ha)": -(vol_arrendamento_sacas / area_total)
-        },
-        # GRUPO RESULTADO LÍQUIDO
-        {
-            "Grupo": "7. (=) LUCRO LÍQUIDO FINAL",
-            "Descrição": "Resultado Final após Capital e Terra",
-            "Valor Total (R$)": lucro_liquido,
-            "Indicador (R$/ha)": lucro_liquido / area_total,
-            "Eqv. (sc/ha)": (lucro_liquido / area_total) / preco_medio_ponderado
-        },
-        # KPI FINAL DE MARGEM
-        {
-            "Grupo": "MARGEM LÍQUIDA (%)",
-            "Descrição": "Lucro Líquido / Receita Bruta",
-            "Valor Total (R$)": f"{margem_liquida_perc:.1f}%",
-            "Indicador (R$/ha)": "-",
-            "Eqv. (sc/ha)": "-"
-        },
-        # SEÇÃO 8: INDICADORES DE EFICIÊNCIA (NOVOS)
-        {
-            "Grupo": "8. ANÁLISE DE EFICIÊNCIA (KPIs)",
-            "Descrição": "--- INDICADORES DE CUSTO E VIABILIDADE ---",
-            "Valor Total (R$)": "",
-            "Indicador (R$/ha)": "",
-            "Eqv. (sc/ha)": ""
-        },
-        {
-            "Grupo": "   ⚫ Custo Total Área Própria",
-            "Descrição": "Op + Juros (Sem Arrendamento)",
-            "Valor Total (R$)": "-",
-            "Indicador (R$/ha)": custo_ha_area_propria,
-            "Eqv. (sc/ha)": custo_ha_area_propria / preco_medio_ponderado
-        },
-        {
-            "Grupo": "   🔴 Custo Total Área Arrendada",
-            "Descrição": "Op + Juros + Arrendamento",
-            "Valor Total (R$)": "-",
-            "Indicador (R$/ha)": custo_arr_indicador if area_arrendada > 0 else "-",
-            "Eqv. (sc/ha)": custo_arr_eqv if area_arrendada > 0 else "-"
-        },
-        {
-            "Grupo": "   ⚖️ Breakeven (Preço Venda)",
-            "Descrição": "Produtividade necessária para pagar a conta (Preço Real)",
-            "Valor Total (R$)": "-",
-            "Indicador (R$/ha)": "-",
-            "Eqv. (sc/ha)": breakeven_sc_ha
-        },
-        {
-            "Grupo": "   🔥 Breakeven (Preço Spot)",
-            "Descrição": "Produtividade necessária se vendesse a Mercado Hoje",
-            "Valor Total (R$)": "-",
-            "Indicador (R$/ha)": "-",
-            "Eqv. (sc/ha)": breakeven_sc_ha_spot
-        }
+        {"Grupo": "1. RECEITA BRUTA", "Descrição": f"Venda Total ({produtividade} sc/ha x Preço Médio R$ {preco_medio_ponderado:.2f})", "Valor Total (R$)": receita_bruta_total, "Indicador (R$/ha)": receita_bruta_total / area_total, "Eqv. (sc/ha)": produtividade},
+        {"Grupo": "2. (-) CUSTO OPERACIONAL", "Descrição": f"Custo aplicado na Área Total ({area_total:,.0f} ha)", "Valor Total (R$)": -custo_operacional_total, "Indicador (R$/ha)": -custo_operacional_total / area_total, "Eqv. (sc/ha)": -(custo_operacional_total / area_total) / preco_medio_ponderado},
+        {"Grupo": "3. (=) RESULTADO OPERACIONAL (EBITDA)", "Descrição": "Geração de Caixa da Atividade Agrícola", "Valor Total (R$)": lucro_operacional, "Indicador (R$/ha)": lucro_operacional / area_total, "Eqv. (sc/ha)": (lucro_operacional / area_total) / preco_medio_ponderado},
+        {"Grupo": "4. (-) CUSTO FINANCEIRO (JUROS)", "Descrição": f"Total de Juros do Período ({dias_financiamento} dias)", "Valor Total (R$)": -custo_financeiro_juros, "Indicador (R$/ha)": -custo_financeiro_juros / area_total, "Eqv. (sc/ha)": -juros_sc_ha},
+        {"Grupo": "   ↳ Impacto dos Juros (Unitário)", "Descrição": "Custo financeiro por cada saca produzida", "Valor Total (R$)": f"R$ {juros_por_saca_reais:.2f} /sc", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": f"{(juros_sc_ha/produtividade * -1):.2f} sc/sc"},
+        {"Grupo": "5. (=) FLUXO DE CAIXA OPERACIONAL", "Descrição": "Resultado após pagar operação e bancos", "Valor Total (R$)": fluxo_caixa_operacional, "Indicador (R$/ha)": fluxo_caixa_operacional / area_total, "Eqv. (sc/ha)": (fluxo_caixa_operacional / area_total) / preco_medio_ponderado},
+        {"Grupo": "6. (-) CUSTO DA TERRA (ARRENDAMENTO)", "Descrição": desc_custo_terra, "Valor Total (R$)": -custo_arrendamento_reais, "Indicador (R$/ha)": -custo_arrendamento_reais / area_total, "Eqv. (sc/ha)": -(vol_arrendamento_sacas / area_total)},
+        {"Grupo": "7. (=) LUCRO LÍQUIDO FINAL", "Descrição": "Resultado Final após Capital e Terra", "Valor Total (R$)": lucro_liquido, "Indicador (R$/ha)": lucro_liquido / area_total, "Eqv. (sc/ha)": (lucro_liquido / area_total) / preco_medio_ponderado},
+        {"Grupo": "MARGEM LÍQUIDA (%)", "Descrição": "Lucro Líquido / Receita Bruta", "Valor Total (R$)": f"{margem_liquida_perc:.1f}%", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
+        {"Grupo": "8. ANÁLISE DE EFICIÊNCIA (KPIs)", "Descrição": "--- INDICADORES DE CUSTO E VIABILIDADE ---", "Valor Total (R$)": "", "Indicador (R$/ha)": "", "Eqv. (sc/ha)": ""},
+        {"Grupo": "   ⚫ Custo Total Área Própria", "Descrição": "Op + Juros (Sem Arrendamento)", "Valor Total (R$)": "-", "Indicador (R$/ha)": custo_ha_area_propria, "Eqv. (sc/ha)": custo_ha_area_propria / preco_medio_ponderado},
+        {"Grupo": "   🔴 Custo Total Área Arrendada", "Descrição": "Op + Juros + Arrendamento", "Valor Total (R$)": "-", "Indicador (R$/ha)": custo_arr_indicador if area_arrendada > 0 else "-", "Eqv. (sc/ha)": custo_arr_eqv if area_arrendada > 0 else "-"},
+        {"Grupo": "   ⚖️ Breakeven (Preço Venda)", "Descrição": "Produtividade necessária para pagar a conta (Preço Real)", "Valor Total (R$)": "-", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": breakeven_sc_ha},
+        {"Grupo": "   🔥 Breakeven (Preço Spot)", "Descrição": "Produtividade necessária se vendesse a Mercado Hoje", "Valor Total (R$)": "-", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": breakeven_sc_ha_spot}
     ]
     
     df_dre_pro = pd.DataFrame(dados_dre_pro)
@@ -383,24 +422,17 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
         height=550
     )
     
-    # --- ANÁLISE CRÍTICA INTELIGENTE (CORREÇÃO SOLICITADA) ---
     if area_arrendada > 0:
-        # Lógica para quem tem arrendamento
         custo_arr_sc = custo_ha_area_arrendada / preco_medio_ponderado
         lucro_arr = produtividade - custo_arr_sc
-        
         if lucro_arr < 0:
-            msg_analise = f"⚠️ **Atenção Crítica:** Na Área Arrendada, seu custo total é de **{custo_arr_sc:.1f} sc/ha**. Com produtividade de **{produtividade} sc/ha**, essa área gera prejuízo de **{lucro_arr:.1f} sc/ha**. A área própria está subsidiando o arrendamento."
-            st.warning(msg_analise)
+            st.warning(f"⚠️ **Atenção Crítica:** Na Área Arrendada, seu custo total é de **{custo_arr_sc:.1f} sc/ha**. Com produtividade de **{produtividade} sc/ha**, essa área gera prejuízo de **{lucro_arr:.1f} sc/ha**. A área própria está subsidiando o arrendamento.")
         else:
-            msg_analise = f"✅ **Eficiência no Arrendamento:** Seu custo na área arrendada é de **{custo_arr_sc:.1f} sc/ha**. Você tem uma margem de **{lucro_arr:.1f} sc/ha** sobre a terra de terceiros."
-            st.success(msg_analise)
+            st.success(f"✅ **Eficiência no Arrendamento:** Seu custo na área arrendada é de **{custo_arr_sc:.1f} sc/ha**. Você tem uma margem de **{lucro_arr:.1f} sc/ha** sobre a terra de terceiros.")
     else:
-        # Lógica para quem SÓ tem área própria
         custo_proprio_sc = custo_ha_area_propria / preco_medio_ponderado
         margem_propria = produtividade - custo_proprio_sc
-        msg_analise = f"💡 **Eficiência Operacional:** Você opera 100% em **Área Própria**. Seu custo total (Op + Juros) é de **{custo_proprio_sc:.1f} sc/ha**. Considerando sua produtividade de **{produtividade} sc/ha**, você tem uma margem limpa de **{margem_propria:.1f} sc/ha** para reinvestimento ou retirada."
-        st.info(msg_analise)
+        st.info(f"💡 **Eficiência Operacional:** Você opera 100% em **Área Própria**. Seu custo total (Op + Juros) é de **{custo_proprio_sc:.1f} sc/ha**. Margem Limpa: **{margem_propria:.1f} sc/ha**.")
 
 st.markdown("---")
 
@@ -444,7 +476,7 @@ with tab3:
         st.success("✅ **CONFORTÁVEL:** Boa margem de segurança produtiva.")
 
 # ======================================================================
-# HEATMAP (COM MARCADOR "VOCÊ ESTÁ AQUI")
+# HEATMAP
 # ======================================================================
 st.markdown("### 🔥 Mapa de Sensibilidade: Margem Líquida (R$/ha)")
 
@@ -461,65 +493,17 @@ for i, p_prod in enumerate(prod_range):
         custo_ha_cenario = custo_total_cenario / area_total
         z_data[i, j] = rec - custo_ha_cenario
 
-fig_heat = go.Figure(
-    data=go.Heatmap(
-        z=z_data, 
-        x=preco_range, 
-        y=prod_range, 
-        colorscale="RdYlGn", 
-        colorbar=dict(title="R$/ha")
-    )
-)
+fig_heat = go.Figure(data=go.Heatmap(z=z_data, x=preco_range, y=prod_range, colorscale="RdYlGn", colorbar=dict(title="R$/ha")))
 
 text_vals = [[f"{val:,.0f}" for val in row] for row in z_data]
 
-# Texto nas células
-fig_heat.add_trace(go.Scatter(
-    x=np.repeat(preco_range, len(prod_range)), 
-    y=np.tile(prod_range, len(preco_range)), 
-    text=[v for r in text_vals for v in r], 
-    mode="text", 
-    textfont=dict(size=10, color="black"), 
-    hoverinfo="skip"
-))
+fig_heat.add_trace(go.Scatter(x=np.repeat(preco_range, len(prod_range)), y=np.tile(prod_range, len(preco_range)), text=[v for r in text_vals for v in r], mode="text", textfont=dict(size=10, color="black"), hoverinfo="skip"))
 
-# --- NOVO: MARCADOR DE POSIÇÃO ATUAL ---
-# Adiciona o ponto onde o usuário está
-fig_heat.add_trace(go.Scatter(
-    x=[preco_medio_ponderado],
-    y=[produtividade],
-    mode='markers',
-    marker=dict(symbol='circle', size=12, color='#2E7D32', line=dict(width=2, color='white')),
-    name="Sua Posição",
-    hoverinfo="text",
-    hovertext=f"VOCÊ ESTÁ AQUI<br>Prod: {produtividade} sc/ha<br>Preço Médio: R$ {preco_medio_ponderado:.2f}<br>Margem: R$ {(lucro_liquido/area_total):,.2f}/ha"
-))
+fig_heat.add_trace(go.Scatter(x=[preco_medio_ponderado], y=[produtividade], mode='markers', marker=dict(symbol='circle', size=12, color='#2E7D32', line=dict(width=2, color='white')), name="Sua Posição", hoverinfo="text", hovertext=f"VOCÊ ESTÁ AQUI<br>Prod: {produtividade} sc/ha<br>Preço Médio: R$ {preco_medio_ponderado:.2f}<br>Margem: R$ {(lucro_liquido/area_total):,.2f}/ha"))
 
-# Adiciona a anotação com seta
-fig_heat.add_annotation(
-    x=preco_medio_ponderado,
-    y=produtividade,
-    text="VOCÊ",
-    showarrow=True,
-    arrowhead=2,
-    arrowsize=1,
-    arrowwidth=2,
-    arrowcolor="#1B5E20",
-    ax=0,
-    ay=-30,
-    bgcolor="rgba(255, 255, 255, 0.8)",
-    bordercolor="#2E7D32",
-    borderwidth=1,
-    borderpad=4,
-    font=dict(size=11, color="#1B5E20", family="Arial Black")
-)
+fig_heat.add_annotation(x=preco_medio_ponderado, y=produtividade, text="VOCÊ", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="#1B5E20", ax=0, ay=-30, bgcolor="rgba(255, 255, 255, 0.8)", bordercolor="#2E7D32", borderwidth=1, borderpad=4, font=dict(size=11, color="#1B5E20", family="Arial Black"))
 
-fig_heat.update_layout(
-    title="Margem Líquida por Hectare (R$/ha)", 
-    xaxis_title="Preço (R$/sc)", 
-    yaxis_title="Produtividade (sc/ha)", 
-    height=600
-)
+fig_heat.update_layout(title="Margem Líquida por Hectare (R$/ha)", xaxis_title="Preço (R$/sc)", yaxis_title="Produtividade (sc/ha)", height=600)
 st.plotly_chart(fig_heat, use_container_width=True)
 
-st.markdown("<div class='footer'> AgroExposure Intelligence • Designed & Developed by João Cunha</div>", unsafe_allow_html=True)
+st.markdown("""<div class="footer">AgroExposure v5.1 (Cash Flow & Sales Plan) · <b>Desenvolvido por João Cunha</b></div>""", unsafe_allow_html=True)
