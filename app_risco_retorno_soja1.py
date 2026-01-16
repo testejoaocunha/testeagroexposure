@@ -2,8 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
-import streamlit.components.v1 as components
 import os
 from datetime import datetime, date, timedelta
 
@@ -14,57 +12,74 @@ st.set_page_config(
     page_icon="🌱"
 )
 
-# ---------------- DESIGN SYSTEM PREMIUM (UI CARRY STYLE - BLUE / PREMIUM) ----------------
+# ---------------- DESIGN SYSTEM (AGRO PREMIUM) ----------------
 st.markdown("""
 <style>
-    /* Fonte */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    /* Fonte (moderna e legível) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
     :root {
-        --bg: #F6F8FC;
-        --surface: #FFFFFF;
-        --surface-2: #F8FAFF;
-        --border: #E6EAF2;
-        --text: #0F172A;
-        --muted: #64748B;
-        --primary: #2F6FED;
-        --primary-600: #245CE0;
-        --primary-100: #EAF2FF;
-        --success: #16A34A;
-        --danger: #DC2626;
-        --warning: #F59E0B;
-        --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-        --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.06);
+        /* Base */
+        --bg: #F6F4EE;              /* off-white / bege */
+        --surface: #FFFFFF;         /* cards */
+        --surface-2: #FBFAF6;       /* variação suave */
+        --border: #E5E1D8;          /* bordas quentes */
+        --border-strong: #D6D0C3;   /* bordas + fortes */
+        --text: #1F2937;            /* cinza grafite */
+        --muted: #6B7280;           /* texto secundário */
+
+        /* Agro palette */
+        --primary: #1F5A3B;         /* verde profundo (soja) */
+        --primary-600: #164B2E;     /* verde mais escuro */
+        --primary-100: #E7F1EA;     /* verde muito claro */
+        --olive: #556B2F;           /* oliva / musgo */
+        --earth: #8B6B4E;           /* solo / terroso */
+        --sand: #F3EBDD;            /* bege claro */
+        --gold: #B08D57;            /* dourado fosco (sutil) */
+        --lime: #7AA65A;            /* verde-limão discreto */
+
+        /* Alerts (sem cores gritantes) */
+        --danger: #A94A44;          /* vermelho terroso */
+        --warning: #B07C2C;         /* âmbar fosco */
+
+        /* Shadow / radius */
+        --shadow: 0 14px 34px rgba(17, 24, 39, 0.10);
+        --shadow-sm: 0 10px 24px rgba(17, 24, 39, 0.08);
         --radius: 16px;
     }
 
-    /* --- APP --- */
+    /* APP */
     .stApp {
-        background: linear-gradient(180deg, var(--primary-100) 0%, var(--bg) 28%, var(--bg) 100%) !important;
+        background: linear-gradient(180deg, #F1EEE6 0%, var(--bg) 35%, var(--bg) 100%) !important;
         color: var(--text) !important;
         font-family: 'Inter', sans-serif !important;
     }
 
-    /* --- CONTAINER --- */
+    /* Layout geral */
     .block-container {
-        padding-top: 1.6rem !important;
-        padding-bottom: 5rem !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 5.5rem !important;
         max-width: 1400px;
     }
 
-    /* --- HERO HEADER --- */
+    /* Tipografia */
+    h1, h2, h3, h4 { letter-spacing: -0.02em; }
+    h1 { font-weight: 900 !important; }
+    h2, h3 { font-weight: 800 !important; }
+
+    /* HERO */
     .hero {
-        background: var(--surface);
+        background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(251,250,246,0.96) 100%);
         border: 1px solid var(--border);
-        border-radius: 24px;
+        border-radius: 22px;
         box-shadow: var(--shadow);
-        padding: 22px 24px;
+        padding: 20px 24px;
         margin: 0 0 14px 0;
     }
     .hero-title {
         font-size: 34px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
+        font-weight: 900;
+        letter-spacing: -0.04em;
         color: var(--text);
         margin: 0;
         line-height: 1.1;
@@ -73,20 +88,38 @@ st.markdown("""
         margin-top: 6px;
         color: var(--muted);
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
     }
 
-    /* --- SIDEBAR --- */
+    /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background: var(--surface) !important;
+        background: rgba(255,255,255,0.96) !important;
         border-right: 1px solid var(--border);
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.6rem !important;
-        padding-bottom: 2.4rem !important;
+        padding-top: 1.0rem !important; /* sobe o menu */
+        padding-bottom: 2.2rem !important;
     }
 
-    /* --- INPUTS (BASEWEB) --- */
+    .sidebar-brand { text-align: center; margin-bottom: 12px; }
+    .sidebar-brand .title {
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        color: var(--primary);
+        font-size: 13px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+    .sidebar-brand .subtitle {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    hr { border-color: rgba(229,225,216,0.85) !important; }
+
+    /* INPUTS */
     div[data-baseweb="input"],
     div[data-baseweb="select"] > div {
         background: var(--surface) !important;
@@ -95,14 +128,19 @@ st.markdown("""
     }
     div[data-baseweb="input"]:focus-within,
     div[data-baseweb="select"] > div:focus-within {
-        border-color: rgba(47,111,237,0.55) !important;
-        box-shadow: 0 0 0 3px rgba(47,111,237,0.14) !important;
+        border-color: rgba(122,166,90,0.65) !important;
+        box-shadow: 0 0 0 3px rgba(122,166,90,0.18) !important;
     }
 
-    /* --- BUTTONS --- */
+    .stToggle label, .stSlider label, .stNumberInput label, .stSelectbox label {
+        color: var(--muted) !important;
+        font-weight: 700 !important;
+    }
+
+    /* BUTTONS */
     .stButton > button {
         border-radius: 12px !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         padding: 0.55rem 1rem !important;
         border: 1px solid var(--border) !important;
     }
@@ -112,30 +150,14 @@ st.markdown("""
         background: var(--primary) !important;
         border: 1px solid var(--primary) !important;
         color: #FFFFFF !important;
-        box-shadow: 0 8px 18px rgba(47,111,237,0.18) !important;
+        box-shadow: 0 10px 20px rgba(31,90,59,0.18) !important;
     }
     button[kind="primary"]:hover {
         background: var(--primary-600) !important;
         border-color: var(--primary-600) !important;
     }
 
-    /* Botão HTML (print) */
-    .btn-primary {
-        background: var(--primary);
-        color: #FFFFFF;
-        border: 1px solid var(--primary);
-        padding: 12px 18px;
-        border-radius: 12px;
-        width: 100%;
-        font-weight: 800;
-        cursor: pointer;
-        box-shadow: 0 10px 20px rgba(47,111,237,0.18);
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-    }
-    .btn-primary:hover { background: var(--primary-600); border-color: var(--primary-600); }
-
-    /* --- TABS (PILLS) --- */
+    /* TABS (PILLS) */
     div[data-baseweb="tab-list"] { gap: 8px !important; }
     div[data-baseweb="tab-list"] button {
         background: var(--surface) !important;
@@ -147,44 +169,58 @@ st.markdown("""
         background: var(--primary) !important;
         border-color: var(--primary) !important;
         color: #FFFFFF !important;
-        box-shadow: 0 10px 20px rgba(47,111,237,0.18) !important;
+        box-shadow: 0 10px 20px rgba(31,90,59,0.18) !important;
     }
-    div[data-baseweb="tab-list"] button p { font-weight: 700 !important; }
+    div[data-baseweb="tab-list"] button p { font-weight: 800 !important; }
 
-    /* --- METRIC CARDS --- */
+    /* KPI (METRIC) CARDS */
     div[data-testid="metric-container"] {
-        background: var(--surface) !important;
-        border: 1px solid var(--border) !important;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(251,250,246,0.98) 100%) !important;
+        border: 1px solid var(--border-strong) !important;
         border-radius: var(--radius) !important;
         padding: 16px 16px !important;
         box-shadow: var(--shadow-sm) !important;
-        min-height: 120px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        min-height: 124px;
+        position: relative;
+        overflow: hidden;
+        transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    div[data-testid="metric-container"]::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--olive) 55%, var(--gold) 100%);
+        opacity: 0.92;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-1px);
+        border-color: rgba(31,90,59,0.22) !important;
+        box-shadow: var(--shadow) !important;
     }
     div[data-testid="metric-container"] label {
         color: var(--muted) !important;
         font-size: 12px !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         letter-spacing: 0.01em;
     }
     div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
         color: var(--text) !important;
         font-size: 26px !important;
-        font-weight: 800 !important;
+        font-weight: 900 !important;
     }
     div[data-testid="metric-container"] div[data-testid="stMetricDelta"] {
         font-size: 12px !important;
-        font-weight: 700 !important;
-        background: #F1F5F9 !important;
-        padding: 5px 9px !important;
+        font-weight: 800 !important;
+        background: rgba(243,235,221,0.75) !important;
+        border: 1px solid rgba(176,141,87,0.20) !important;
+        padding: 5px 10px !important;
         border-radius: 999px !important;
         width: fit-content !important;
         margin-top: 10px !important;
     }
 
-    /* --- TABLES / DATAFRAMES --- */
+    /* DATAFRAMES */
     div[data-testid="stDataFrame"] {
         border-radius: var(--radius);
         overflow: hidden;
@@ -193,10 +229,9 @@ st.markdown("""
         box-shadow: var(--shadow-sm);
     }
     .dataframe thead th {
-        background: #F1F5F9 !important;
-        color: var(--muted) !important;
-        font-family: 'Inter', sans-serif;
-        font-weight: 800 !important;
+        background: rgba(231,241,234,0.90) !important;
+        color: var(--primary-600) !important;
+        font-weight: 900 !important;
         text-transform: uppercase;
         font-size: 0.78rem !important;
         padding: 12px 15px !important;
@@ -204,14 +239,14 @@ st.markdown("""
     }
     .dataframe tbody td {
         padding: 12px 15px !important;
-        border-bottom: 1px solid #F1F5F9 !important;
+        border-bottom: 1px solid rgba(229,225,216,0.75) !important;
         color: #334155 !important;
         font-size: 0.92rem !important;
     }
-    .dataframe tbody tr:nth-of-type(even) { background-color: #FAFBFF !important; }
-    .dataframe tbody tr:hover { background-color: #EFF6FF !important; }
+    .dataframe tbody tr:nth-of-type(even) { background-color: rgba(251,250,246,0.90) !important; }
+    .dataframe tbody tr:hover { background-color: rgba(231,241,234,0.65) !important; }
 
-    /* --- EXPANDERS --- */
+    /* EXPANDERS */
     div[data-testid="stExpander"] {
         background: var(--surface) !important;
         border: 1px solid var(--border);
@@ -221,16 +256,100 @@ st.markdown("""
     }
     .streamlit-expanderHeader {
         background: var(--surface) !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
+        color: var(--text) !important;
     }
 
-    /* --- FOOTER --- */
+    /* COMPONENTES CUSTOM */
+    .prod-card {
+        background: linear-gradient(180deg, rgba(231,241,234,0.65) 0%, rgba(243,235,221,0.35) 100%);
+        border: 1px solid rgba(31,90,59,0.18);
+        border-radius: 14px;
+        padding: 12px 12px;
+        margin-top: 8px;
+    }
+    .prod-title {
+        font-weight: 900;
+        color: var(--primary-600);
+        font-size: 13px;
+        margin-bottom: 8px;
+        letter-spacing: 0.01em;
+    }
+    .prod-row {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        color: #243B33;
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .prod-sep {
+        margin: 8px 0;
+        border-top: 1px solid rgba(31,90,59,0.18);
+    }
+
+    .advisor-card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(251,250,246,0.98) 100%);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-sm);
+        padding: 14px 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .advisor-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: var(--primary);
+    }
+    .advisor-card.warning::before { background: var(--gold); }
+    .advisor-card.danger::before { background: var(--danger); }
+
+    .advisor-card .t {
+        font-weight: 900;
+        color: var(--text);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .advisor-card .big {
+        font-weight: 900;
+        font-size: 22px;
+        color: var(--text);
+        margin-top: 6px;
+    }
+    .advisor-card .p {
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 12px;
+        margin-top: 6px;
+        line-height: 1.35;
+    }
+
+    /* FOOTER */
+    /* --- PLOTLY CHARTS (CARD PREMIUM) --- */
+    div[data-testid="stPlotlyChart"] {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-sm);
+        padding: 10px 10px 6px 10px;
+    }
+    div[data-testid="stPlotlyChart"] > div {
+        border-radius: calc(var(--radius) - 2px);
+        overflow: hidden;
+    }
+
     .footer {
         position: fixed;
         left: 0;
         bottom: 0;
         width: 100%;
-        background: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.86);
         backdrop-filter: blur(10px);
         border-top: 1px solid var(--border);
         color: var(--muted);
@@ -240,7 +359,7 @@ st.markdown("""
         z-index: 999;
     }
 
-    /* --- PRINT --- */
+    /* PRINT */
     @media print {
         section[data-testid="stSidebar"], header, .footer, .stButton, button, .stDeployButton { display: none !important; }
         body, .stApp { background-color: white !important; }
@@ -257,28 +376,58 @@ def fmt_brl(valor):
         return f"{prefix}R$ {val_abs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return valor
 
-def fmt_dec(valor, suffix=""):
+def fmt_dec(valor, suffix="", dec=2):
+    """Formata números no padrão BR (milhar com ponto e decimal com vírgula).
+
+    Importante: usar SOMENTE para exibição (nunca em cálculos).
+    """
     if isinstance(valor, (int, float)):
-        return f"{valor:,.2f}{suffix}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{valor:,.{dec}f}{suffix}".replace(",", "X").replace(".", ",").replace("X", ".")
     return valor
 
-# ---------------- JAVASCRIPT PARA IMPRESSÃO ----------------
-def print_button():
-    js = """
-    <script>
-        function printPage() { window.print(); }
-    </script>
-    <button onclick="printPage()" class="btn-primary">🖨️ Gerar Relatório PDF</button>
+
+def fmt_pct(valor, dec=1):
+    """Formata percentuais no padrão BR (ex.: 12,5%). Somente exibição.
     """
-    components.html(js, height=70)
+    if isinstance(valor, (int, float)):
+        return f"{valor:,.{dec}f}%".replace(",", "X").replace(".", ",").replace("X", ".")
+    return valor
+
+
+# ---------------- THEME (PLOTLY) ----------------
+C_PRIMARY = "#1F5A3B"
+C_OLIVE = "#556B2F"
+C_GOLD = "#B08D57"
+C_EARTH = "#8B6B4E"
+C_DANGER = "#A94A44"
+C_GRAPHITE = "#1F2937"
+C_GRID = "rgba(31,41,55,0.08)"
+
+def apply_plotly_theme(fig, height=None):
+    # Aplica tema visual consistente aos gráficos (somente apresentação).
+    fig.update_layout(
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", color=C_GRAPHITE),
+        margin=dict(l=24, r=24, t=48, b=24),
+    )
+    fig.update_xaxes(showgrid=True, gridcolor=C_GRID, zerolinecolor="rgba(31,41,55,0.10)")
+    fig.update_yaxes(showgrid=True, gridcolor=C_GRID, zerolinecolor="rgba(31,41,55,0.10)")
+    if height is not None:
+        fig.update_layout(height=height)
+    return fig
 
 # ==============================================================================
-# 1. BARRA LATERAL (INPUTS)
 # ==============================================================================
 with st.sidebar:
-    print_button()
     
-    st.markdown("<h2 style='text-align: center; color: #1D4ED8; margin-bottom: 20px; border-bottom: 2px solid #DBEAFE; padding-bottom: 10px;'>AGRO EXPOSURE</h2>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='sidebar-brand'>
+        <div class='title'>AGROEXPOSURE</div>
+        <div class='subtitle'>Gestão de risco, hedge e liquidez com visão profissional</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("### ⚙️ Parâmetros da Safra")
     
@@ -294,7 +443,7 @@ with st.sidebar:
     st.markdown("---")
 
     # 1. Produção
-    st.markdown("<p style='color:#1D4ED8; font-weight:bold; margin-top:10px; font-size:1.1rem;'>1. Produção e Custo</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:var(--primary); font-weight:bold; margin-top:10px; font-size:1.1rem;'>1. Produção e Custo</p>", unsafe_allow_html=True)
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
@@ -308,13 +457,13 @@ with st.sidebar:
     perc_propria = (area_propria / area_total) * 100
     perc_arrendada = (area_arrendada / area_total) * 100
     
-    st.markdown(f"<div style='margin-bottom:10px;'>📍 Total: <b>{area_total:,.0f} ha</b> <span style='color:#78909C; font-size:12px;'>({perc_propria:.0f}% Próp. | {perc_arrendada:.0f}% Arr.)</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='margin-bottom:10px;'>📍 Total: <b>{fmt_dec(area_total, ' ha', dec=0)}</b> <span style='color:#78909C; font-size:12px;'>({perc_propria:.0f}% Próp. | {perc_arrendada:.0f}% Arr.)</span></div>", unsafe_allow_html=True)
 
     produtividade_base = st.number_input("Produtividade Est. (sc/ha)", value=60.0, step=1.0, format="%.1f")
     
     if simular_quebra:
         produtividade = produtividade_base * (1 - fator_quebra)
-        st.markdown(f"**Produtividade Efetiva:** <span style='color:#D32F2F; font-weight:bold;'>{produtividade:.1f} sc/ha</span>", unsafe_allow_html=True)
+        st.markdown(f"**Produtividade Efetiva:** <span style='color:#A94A44; font-weight:bold;'>{fmt_dec(produtividade, ' sc/ha', dec=1)}</span>", unsafe_allow_html=True)
     else:
         produtividade = produtividade_base
         
@@ -323,30 +472,31 @@ with st.sidebar:
     producao_total = area_total * produtividade
 
     st.markdown(f"""
-    <div style='background-color: #F1F8E9; padding: 12px; border-radius: 8px; margin-top: 8px; font-size: 13px; color: #33691E; border: 1px solid #DCEDC8;'>
-        <div style='display:flex; justify-content:space-between;'><span>🌱 Própria:</span> <b>{fmt_dec(vol_propria, ' sc')}</b></div>
-        <div style='display:flex; justify-content:space-between;'><span>🌱 Arrendada:</span> <b>{fmt_dec(vol_arrendada, ' sc')}</b></div>
-        <hr style='margin: 6px 0; border-top: 1px solid #C5E1A5;'>
-        <div style='display:flex; justify-content:space-between; font-size:14px;'><span>🚜 <b>Total:</b></span> <b>{fmt_dec(producao_total, ' sc')}</b></div>
+    <div class='prod-card'>
+        <div class='prod-title'>📍 Produção Total</div>
+        <div class='prod-row'><span>🌱 Própria</span> <b>{fmt_dec(vol_propria, ' sc')}</b></div>
+        <div class='prod-row'><span>🌱 Arrendada</span> <b>{fmt_dec(vol_arrendada, ' sc')}</b></div>
+        <div class='prod-sep'></div>
+        <div class='prod-row' style='font-size:14px;'><span>🚜 <b>Total</b></span> <b>{fmt_dec(producao_total, ' sc')}</b></div>
     </div>
     """, unsafe_allow_html=True)
     
     custo_ha_operacional = st.number_input("Custo Operacional (R$/ha)", value=6000.0, step=100.0, format="%.2f")
     
     # 2. Comercialização
-    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:#1D4ED8; font-weight:bold; font-size:1.1rem;'>2. Comercialização</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:var(--primary); font-weight:bold; font-size:1.1rem;'>2. Comercialização</p>", unsafe_allow_html=True)
     perc_comercializado = st.slider("% Já Travado (Hedge)", 0, 100, 25) 
     vol_hedge = producao_total * (perc_comercializado/100)
     st.caption(f"📦 Volume Travado: {fmt_dec(vol_hedge, ' sc')}")
     preco_medio_venda = st.number_input("Preço Médio Travado (R$/sc)", value=115.0, step=0.5, format="%.2f") 
     
     # 3. Mercado
-    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:#1D4ED8; font-weight:bold; font-size:1.1rem;'>3. Metas e Mercado</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:var(--primary); font-weight:bold; font-size:1.1rem;'>3. Metas e Mercado</p>", unsafe_allow_html=True)
     preco_mercado = st.number_input("Preço de Mercado (atual) R$/sc", value=105.0, step=0.5, format="%.2f") 
     margem_desejada = st.slider("Margem Alvo (%)", 0, 50, 20)
 
     # 4. Custeio
-    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:#1D4ED8; font-weight:bold; font-size:1.1rem;'>4. Financiamento & Terra</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:var(--primary); font-weight:bold; font-size:1.1rem;'>4. Financiamento & Terra</p>", unsafe_allow_html=True)
     perc_financiado = st.number_input("% Custeio Financiado", value=30.0, step=5.0) 
     taxa_juros_ano = st.number_input("Taxa de Juros ao Ano (%)", value=12.0, step=0.5, format="%.2f")
     col_d1, col_d2 = st.columns(2)
@@ -355,10 +505,10 @@ with st.sidebar:
     
     st.markdown("<div style='margin-top:10px; font-weight:600; font-size:13px; color:#455A64;'>Custo do Arrendamento</div>", unsafe_allow_html=True)
     arrendamento_sc_ha = st.number_input("Pagamento (sc/ha)", value=15.0, step=0.5, format="%.2f") 
-    st.caption(f"Ref. Área Arrendada: {area_arrendada:,.0f} ha")
+    st.caption(f"Ref. Área Arrendada: {fmt_dec(area_arrendada, ' ha', dec=0)}")
 
     # 5. PERFIL DE PAGAMENTOS
-    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:#1D4ED8; font-weight:bold; font-size:1.1rem;'>5. Perfil de Pagamentos</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0; border-color:#E0E0E0;'><p style='color:var(--primary); font-weight:bold; font-size:1.1rem;'>5. Perfil de Pagamentos</p>", unsafe_allow_html=True)
     st.info("Distribuição do Custo Operacional (R$):")
     
     perc_insumos = st.slider("1. Insumos (Sementes/Quím/Fert)", 0, 100, 60)
@@ -508,7 +658,7 @@ juros_sc_ha = (custo_financeiro_juros / area_total) / preco_medio_blended if (ar
 st.markdown("""
 <div class="hero">
   <div class="hero-title">AgroExposure: Painel de Decisão Estratégica</div>
-  <div class="hero-subtitle">Simule preço, hedge, risco e liquidez com visual premium no estilo "Análise do Carry".</div>
+  <div class="hero-subtitle">Soja, produtividade e gestão de risco — painel executivo para decisões no campo.</div>
 </div>
 """, unsafe_allow_html=True) 
 
@@ -516,7 +666,7 @@ st.markdown("""
 c1, c2, c3, c4, c5 = st.columns(5)
 
 with c1:
-    st.metric("🚜 Produção Líquida", f"{producao_liquida_sacas:,.0f} sc", delta=f"Total: {producao_total:,.0f} sc", help="Volume total MENOS arrendamento.")
+    st.metric("🚜 Produção Líquida", fmt_dec(producao_liquida_sacas, ' sc', dec=0), delta=f"Total: {fmt_dec(producao_total, ' sc', dec=0)}", help="Volume total MENOS arrendamento.")
 with c2:
     st.metric("📉 Custo (Caixa/Liq)", fmt_brl(custo_sc_liquida) + " /sc", delta=f"Terra eqv: {fmt_brl(custo_sc_total)} /sc", delta_color="inverse", help="AUDITORIA: custo por saca comercializável (Operação + Juros). Terra (arrendamento em sacas) aparece como equivalente no delta.")
 with c3:
@@ -543,10 +693,10 @@ fig_gauge = go.Figure(go.Indicator(
     value = margem_liquida_perc,
     domain = {'x': [0, 1], 'y': [0, 1]},
     title = {'text': "<b>Status da Meta de Margem</b>", 'font': {'size': 18, 'color': '#263238', 'family': 'Inter'}},
-    delta = {'reference': margem_desejada, 'increasing': {'color': "#2E7D32"}},
+    delta = {'reference': margem_desejada, 'increasing': {'color': "#1F5A3B"}},
     gauge = {
         'axis': {'range': [None, max(50, margem_desejada + 20)], 'tickwidth': 1, 'tickcolor': "#37474F"},
-        'bar': {'color': "#2F6FED"},
+        'bar': {'color': "#1F5A3B"},
         'bgcolor': "white",
         'borderwidth': 2,
         'bordercolor': "#CFD8DC",
@@ -554,7 +704,7 @@ fig_gauge = go.Figure(go.Indicator(
             {'range': [0, 0], 'color': '#FFEBEE'},
             {'range': [0, margem_desejada], 'color': '#E8F5E9'}],
         'threshold': {
-            'line': {'color': "#FF9800", 'width': 4},
+            'line': {'color': "#B08D57", 'width': 4},
             'thickness': 0.75,
             'value': margem_desejada}
     }
@@ -587,7 +737,7 @@ with st.expander("⚖️ Simulador de Negociação (What-If)", expanded=False):
         lucro_sim = rec_sim - custo_tot_sim
         margem_sim = (lucro_sim/rec_sim)*100 if rec_sim > 0 else 0
         delta_m = margem_sim - margem_liquida_perc
-        st.metric("Nova Margem Estimada", f"{margem_sim:.2f}%", delta=f"{delta_m:+.2f}%")
+        st.metric("Nova Margem Estimada", fmt_pct(margem_sim, 2), delta=(('+' if delta_m>=0 else '') + fmt_pct(delta_m, 2)))
 
 st.markdown("---")
 
@@ -604,24 +754,25 @@ with col_left:
 
     fig_rr = go.Figure()
     # Zonas
-    fig_rr.add_shape(type="rect", x0=50, x1=100, y0=y_min, y1=margem_desejada, fillcolor="rgba(211, 47, 47, 0.1)", line_width=0)
-    fig_rr.add_shape(type="rect", x0=50, x1=100, y0=margem_desejada, y1=y_max, fillcolor="rgba(251, 192, 45, 0.15)", line_width=0)
-    fig_rr.add_shape(type="rect", x0=0, x1=50, y0=y_min, y1=margem_desejada, fillcolor="rgba(25, 118, 210, 0.05)", line_width=0)
-    fig_rr.add_shape(type="rect", x0=0, x1=50, y0=margem_desejada, y1=y_max, fillcolor="rgba(56, 142, 60, 0.1)", line_width=0)
+    fig_rr.add_shape(type="rect", x0=50, x1=100, y0=y_min, y1=margem_desejada, fillcolor="rgba(169, 74, 68, 0.10)", line_width=0)
+    fig_rr.add_shape(type="rect", x0=50, x1=100, y0=margem_desejada, y1=y_max, fillcolor="rgba(176, 141, 87, 0.12)", line_width=0)
+    fig_rr.add_shape(type="rect", x0=0, x1=50, y0=y_min, y1=margem_desejada, fillcolor="rgba(243, 235, 221, 0.25)", line_width=0)
+    fig_rr.add_shape(type="rect", x0=0, x1=50, y0=margem_desejada, y1=y_max, fillcolor="rgba(31, 90, 59, 0.10)", line_width=0)
     
     # CORREÇÃO VISUAL: Texto preto e negrito, posição ajustada
     fig_rr.add_trace(go.Scatter(
         x=[exposicao_perc], 
         y=[margem_liquida_perc], 
         mode='markers+text',
-        marker=dict(size=25, color='#2F6FED', line=dict(width=3, color='white')), 
-        text=[f"<b>VOCÊ<br>{margem_liquida_perc:.1f}%</b>"], 
+        marker=dict(size=25, color='#1F5A3B', line=dict(width=3, color='white')), 
+        text=[f"<b>VOCÊ<br>{fmt_pct(margem_liquida_perc, 1)}</b>"], 
         textposition="top center", 
         textfont=dict(family="Inter", size=14, color="black") # Cor preta forçada
     ))
     
     fig_rr.update_layout(xaxis_title="Exposição Spot (%)", yaxis_title="Margem Líquida (%)",
         xaxis=dict(range=[0, 100]), yaxis=dict(range=[y_min, y_max]), height=350, template="plotly_white", margin=dict(l=20, r=20, t=20, b=20), font={'family': 'Inter'})
+    apply_plotly_theme(fig_rr, height=350)
     st.plotly_chart(fig_rr, use_container_width=True)
 
 with col_right:
@@ -640,13 +791,14 @@ with col_right:
         margens_sim.append(m)
         
     fig_sens = go.Figure()
-    fig_sens.add_trace(go.Scatter(x=range_precos, y=margens_sim, mode='lines', line=dict(color='#1565C0', width=4), name='Margem'))
-    fig_sens.add_hline(y=margem_desejada, line_dash="dot", line_color="green", annotation_text="Meta")
+    fig_sens.add_trace(go.Scatter(x=range_precos, y=margens_sim, mode='lines', line=dict(color='#1F5A3B', width=4), name='Margem'))
+    fig_sens.add_hline(y=margem_desejada, line_dash="dot", line_color="#B08D57", annotation_text="Meta")
     
     # Linha vertical no Breakeven de Saldo (Onde a curva cruza zero ou margem mínima)
-    fig_sens.add_vline(x=preco_breakeven_saldo, line_dash="dash", line_color="#FF9800", annotation_text=f"0x0: {fmt_brl(preco_breakeven_saldo)}")
+    fig_sens.add_vline(x=preco_breakeven_saldo, line_dash="dash", line_color="#8B6B4E", annotation_text=f"0x0: {fmt_brl(preco_breakeven_saldo)}")
     
     fig_sens.update_layout(xaxis_title="Preço Soja (R$)", yaxis_title="Margem Líquida (%)", height=350, template="plotly_white", font={'family': 'Inter'})
+    apply_plotly_theme(fig_sens, height=350)
     st.plotly_chart(fig_sens, use_container_width=True)
 
 # --- FLUXO DE CAIXA INTELIGENTE (CORRIGIDO 50/25/25) ---
@@ -720,11 +872,12 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
     saldo_acumulado = np.cumsum(entradas - saidas)
     
     fig_fluxo = go.Figure()
-    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=entradas, name='Entradas (Vendas)', marker_color='#66BB6A'))
-    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=-saidas, name='Saídas (Desembolso)', marker_color='#EF5350'))
-    fig_fluxo.add_trace(go.Scatter(x=nomes_meses, y=saldo_acumulado, name='Saldo Acumulado', mode='lines+markers', line=dict(color='#1565C0', width=3)))
+    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=entradas, name='Entradas (Vendas)', marker_color='rgba(31, 90, 59, 0.62)'))
+    fig_fluxo.add_trace(go.Bar(x=nomes_meses, y=-saidas, name='Saídas (Desembolso)', marker_color='rgba(169, 74, 68, 0.62)'))
+    fig_fluxo.add_trace(go.Scatter(x=nomes_meses, y=saldo_acumulado, name='Saldo Acumulado', mode='lines+markers', line=dict(color='#1F2937', width=3)))
     fig_fluxo.add_shape(type="line", x0=-0.5, x1=11.5, y0=0, y1=0, line=dict(color="black", width=1))
     fig_fluxo.update_layout(title="Fluxo de Caixa (Considerando Insumos 50/25/25)", barmode='relative', height=400, template="plotly_white", font={'family': 'Inter'})
+    apply_plotly_theme(fig_fluxo, height=400)
     st.plotly_chart(fig_fluxo, use_container_width=True)
     
     st.markdown("#### 📉 Necessidade de Venda para Cobertura de Caixa")
@@ -737,16 +890,16 @@ with st.expander("Ver Gráfico e Detalhes de Entradas/Saídas", expanded=True):
         if gap > 0:
             sc_nec = gap / preco_mercado
             perc = (sc_nec / producao_total) * 100 if producao_total > 0 else 0
-            nec_venda.append([nomes_meses[i], fmt_brl(gap), f"{sc_nec:,.0f} sc", f"{perc:.1f}%"])
+            nec_venda.append([nomes_meses[i], fmt_brl(gap), fmt_dec(sc_nec, " sc", dec=0), fmt_pct(perc, 1)])
             total_deficit += gap
             total_sacas_nec += sc_nec
     
     if nec_venda:
         total_perc_safra = (total_sacas_nec / producao_total * 100) if producao_total > 0 else 0
-        nec_venda.append(["TOTAL ACUMULADO", fmt_brl(total_deficit), f"{total_sacas_nec:,.0f} sc", f"{total_perc_safra:.1f}%"])
+        nec_venda.append(["TOTAL ACUMULADO", fmt_brl(total_deficit), fmt_dec(total_sacas_nec, " sc", dec=0), fmt_pct(total_perc_safra, 1)])
         df_nec = pd.DataFrame(nec_venda, columns=["Mês", "Déficit a Cobrir", "Sacas Necessárias", "% da Safra"])
         def style_total_row(row):
-            if row.name == len(df_nec) - 1: return ['font-weight: bold; background-color: #E8F5E9; color: #1D4ED8; border-top: 2px solid #1D4ED8'] * len(row)
+            if row.name == len(df_nec) - 1: return ['font-weight: bold; background-color: #E8F5E9; color: var(--primary); border-top: 2px solid var(--primary)'] * len(row)
             return [''] * len(row)
         st.dataframe(df_nec.style.apply(style_total_row, axis=1), use_container_width=True, hide_index=True)
     else:
@@ -758,7 +911,7 @@ st.markdown("---")
 st.markdown("### 📋 DRE Gerencial de Decisão (Visão Econômica)")
 
 with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=True):
-    desc_custo_terra = f"Ref. {area_arrendada:.0f} ha arrendados ({arrendamento_sc_ha} sc/ha)" if area_arrendada > 0 else "Sem área arrendada"
+    desc_custo_terra = f"Ref. {fmt_dec(area_arrendada, ' ha', dec=0)} arrendados ({arrendamento_sc_ha} sc/ha)" if area_arrendada > 0 else "Sem área arrendada"
     custo_arr_indicador = custo_ha_area_arrendada if area_arrendada > 0 else 0
     custo_arr_eqv = (custo_ha_area_arrendada / preco_medio_blended) if area_arrendada > 0 else 0
     
@@ -772,41 +925,107 @@ with st.expander("Ver Análise Vertical Detalhada (R$/ha e sc/ha)", expanded=Tru
         {"Grupo": "1. VALOR BRUTO DA PRODUÇÃO (VBP)", "Descrição": "Produção total valorizada (inclui arrendamento em sacas a preço mercado)", "Valor Total (R$)": vbp_total, "Indicador (R$/ha)": vbp_total / area_total, "Eqv. (sc/ha)": produtividade},
         {"Grupo": "2. (-) CUSTO DA TERRA (ARRENDAMENTO)", "Descrição": desc_custo_terra, "Valor Total (R$)": -custo_arrendamento_reais_hoje, "Indicador (R$/ha)": -custo_arrendamento_reais_hoje / area_total, "Eqv. (sc/ha)": -(vol_arrendamento_sacas / area_total)},
         {"Grupo": "3. (=) RECEITA LÍQUIDA COMERCIALIZÁVEL", "Descrição": f"Venda do volume líquido (média {fmt_brl(preco_medio_blended)})", "Valor Total (R$)": receita_bruta_total, "Indicador (R$/ha)": receita_bruta_total / area_total, "Eqv. (sc/ha)": prod_liq_sc_ha},
-        {"Grupo": "4. (-) CUSTO OPERACIONAL", "Descrição": f"Custo aplicado na Área Total ({area_total:,.0f} ha)", "Valor Total (R$)": -custo_operacional_total, "Indicador (R$/ha)": -custo_operacional_total / area_total, "Eqv. (sc/ha)": -(custo_operacional_total / area_total) / preco_medio_blended if preco_medio_blended > 0 else 0},
+        {"Grupo": "4. (-) CUSTO OPERACIONAL", "Descrição": f"Custo aplicado na Área Total ({fmt_dec(area_total, ' ha', dec=0)})", "Valor Total (R$)": -custo_operacional_total, "Indicador (R$/ha)": -custo_operacional_total / area_total, "Eqv. (sc/ha)": -(custo_operacional_total / area_total) / preco_medio_blended if preco_medio_blended > 0 else 0},
         {"Grupo": "5. (=) RESULTADO OPERACIONAL (EBITDA)", "Descrição": "Geração de caixa da atividade agrícola", "Valor Total (R$)": lucro_operacional, "Indicador (R$/ha)": lucro_operacional / area_total, "Eqv. (sc/ha)": (lucro_operacional / area_total) / preco_medio_blended if preco_medio_blended > 0 else 0},
         {"Grupo": "6. (-) CUSTO FINANCEIRO (JUROS)", "Descrição": f"Total de juros do período ({dias_financiamento} dias)", "Valor Total (R$)": -custo_financeiro_juros, "Indicador (R$/ha)": -custo_financeiro_juros / area_total, "Eqv. (sc/ha)": -juros_sc_ha},
         {"Grupo": "  ↳ Impacto dos Juros (Unitário)", "Descrição": "Custo financeiro por saca produzida", "Valor Total (R$)": f"{fmt_brl(juros_por_saca_reais)} /sc", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
         {"Grupo": "7. (=) RESULTADO FINAL (APÓS JUROS)", "Descrição": "Resultado final após operação e bancos", "Valor Total (R$)": lucro_liquido, "Indicador (R$/ha)": lucro_liquido / area_total, "Eqv. (sc/ha)": (lucro_liquido / area_total) / preco_medio_blended if preco_medio_blended > 0 else 0},
-        {"Grupo": "MARGEM LÍQUIDA (%)", "Descrição": "Lucro Líquido / Receita de Venda", "Valor Total (R$)": f"{margem_liquida_perc:.1f}%", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
-        {"Grupo": "ROI (%)", "Descrição": "Lucro Líquido / (Custo Total incl. Terra)", "Valor Total (R$)": f"{roi_perc:.1f}%", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
-        {"Grupo": "ROI Caixa (%)", "Descrição": "Lucro Líquido / (Custo Caixa)", "Valor Total (R$)": f"{roi_caixa_perc:.1f}%", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
+        {"Grupo": "MARGEM LÍQUIDA (%)", "Descrição": "Lucro Líquido / Receita de Venda", "Valor Total (R$)": fmt_pct(margem_liquida_perc, 1), "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
+        {"Grupo": "ROI (%)", "Descrição": "Lucro Líquido / (Custo Total incl. Terra)", "Valor Total (R$)": fmt_pct(roi_perc, 1), "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
+        {"Grupo": "ROI Caixa (%)", "Descrição": "Lucro Líquido / (Custo Caixa)", "Valor Total (R$)": fmt_pct(roi_caixa_perc, 1), "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": "-"},
         {"Grupo": "8. ANÁLISE DE EFICIÊNCIA (KPIs)", "Descrição": "--- INDICADORES DE CUSTO E VIABILIDADE ---", "Valor Total (R$)": "", "Indicador (R$/ha)": "", "Eqv. (sc/ha)": ""},
         {"Grupo": "  ⚫ Custo Total Área Própria", "Descrição": "Op + Juros (sem arrendamento)", "Valor Total (R$)": "-", "Indicador (R$/ha)": custo_ha_area_propria, "Eqv. (sc/ha)": (custo_ha_area_propria / preco_medio_blended) if preco_medio_blended > 0 else 0},
         {"Grupo": "  🔴 Custo Total Área Arrendada", "Descrição": "Op + Juros + Arrendamento (eqv)", "Valor Total (R$)": "-", "Indicador (R$/ha)": custo_arr_indicador if area_arrendada > 0 else "-", "Eqv. (sc/ha)": custo_arr_eqv if area_arrendada > 0 else "-"},
-        {"Grupo": "  ⚖️ Breakeven (Produtividade)", "Descrição": "Produtividade mínima p/ 0x0 (Plano atual vs Conservador)", "Valor Total (R$)": "-", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": f"{breakeven_sc_ha_plano:.1f} (Plano) | {breakeven_sc_ha_conservador:.1f} (Mkt)"},
+        {"Grupo": "  ⚖️ Breakeven (Produtividade)", "Descrição": "Produtividade mínima p/ 0x0 (Plano atual vs Conservador)", "Valor Total (R$)": "-", "Indicador (R$/ha)": "-", "Eqv. (sc/ha)": f"{fmt_dec(breakeven_sc_ha_plano, dec=1)} (Plano) | {fmt_dec(breakeven_sc_ha_conservador, dec=1)} (Mkt)"},
     ]
 
     df_dre_pro = pd.DataFrame(dados_dre_pro)
     df_dre_pro = pd.DataFrame(dados_dre_pro)
     
     def style_rows_dre(v):
-        if isinstance(v, (int, float)) and v < 0: return 'color: #D32F2F; font-weight: 700;'
+        """Cores na DRE (apenas apresentação):
+        - Negativos: vermelho terroso
+        - Positivos: verde escuro
+        - Percentuais: verde escuro (se positivo)
+        """
+        if isinstance(v, (int, float)):
+            if v < 0: return 'color: #A94A44; font-weight: 800;'
+            if v > 0: return 'color: #164B2E; font-weight: 800;'
+            return ''
         if isinstance(v, str):
-            if "- R$" in v: return 'color: #D32F2F; font-weight: 700;'
-            if "-" in v and "%" in v: return 'color: #D32F2F; font-weight: 700;'
-            if "%" in v: return 'font-weight: bold; color: #1D4ED8;'
+            vv = v.strip()
+            if vv.startswith('-'):
+                return 'color: #A94A44; font-weight: 800;'
+            if '%' in vv:
+                return 'color: #164B2E; font-weight: 900;'
         return ''
 
     st.dataframe(
         df_dre_pro.style.format({
             "Valor Total (R$)": lambda x: fmt_brl(x) if isinstance(x, (int, float)) else x,
             "Indicador (R$/ha)": lambda x: fmt_brl(x) if isinstance(x, (int, float)) else x,
-            "Eqv. (sc/ha)": lambda x: f"{x:,.1f}" if isinstance(x, (int, float)) else x
+            "Eqv. (sc/ha)": lambda x: fmt_dec(x, dec=1) if isinstance(x, (int, float)) else x
         }).applymap(style_rows_dre, subset=["Valor Total (R$)", "Indicador (R$/ha)", "Eqv. (sc/ha)"]),
         use_container_width=True,
         hide_index=True,
         height=550
     )
+
+
+
+# --- ADVISOR FINANCEIRO (RESUMO EXECUTIVO) ---
+st.markdown("### 🤖 Advisor Financeiro")
+st.caption("Resumo objetivo dos principais pontos de preço, margem e risco para decisão. (Somente visual — cálculos permanecem inalterados.)")
+
+# Gaps de preço (Spot vs referências)
+gap_0x0 = preco_mercado - preco_breakeven_saldo
+# Gap da meta: mercado vs preço alvo
+gap_meta = preco_mercado - preco_alvo_restante_meta
+# Folga de produtividade (Plano)
+folga_sc_ha = produtividade - breakeven_sc_ha_plano
+
+col_adv1, col_adv2, col_adv3 = st.columns(3)
+
+def _tone_by_gap(gap, tol=0.0):
+    if gap < -tol:
+        return "danger"
+    if gap < tol:
+        return "warning"
+    return ""
+
+with col_adv1:
+    tone = _tone_by_gap(gap_0x0)
+    st.markdown(f"""
+    <div class='advisor-card {tone}'>
+        <div class='t'>🛑 Ponto de Nivelamento (0x0)</div>
+        <div class='big'>{fmt_brl(preco_breakeven_saldo)}/sc</div>
+        <div class='p'>Mercado: <b>{fmt_brl(preco_mercado)}</b> · Gap vs 0x0: <b>{fmt_brl(gap_0x0)}</b></div>
+        <div class='p'>Interpretação: preço mínimo do <b>saldo</b> para zerar a operação (lucro = 0).</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_adv2:
+    tone = _tone_by_gap(gap_meta)
+    st.markdown(f"""
+    <div class='advisor-card {tone}'>
+        <div class='t'>🎯 Preço Alvo da Meta</div>
+        <div class='big'>{fmt_brl(preco_alvo_restante_meta)}/sc</div>
+        <div class='p'>Meta: <b>{margem_desejada}%</b> · Gap vs mercado: <b>{fmt_brl(gap_meta)}</b></div>
+        <div class='p'>Interpretação: preço necessário no <b>saldo</b> para atingir a margem-alvo.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_adv3:
+    # Avalia risco produtivo pela folga em sc/ha
+    tone = "danger" if folga_sc_ha < 0 else ("warning" if folga_sc_ha < 5 else "")
+    st.markdown(f"""
+    <div class='advisor-card {tone}'>
+        <div class='t'>🌾 Margem, ROI e Produtividade</div>
+        <div class='big'>Margem {fmt_pct(margem_liquida_perc, 1)} · ROI {fmt_pct(roi_perc, 1)}</div>
+        <div class='p'>Breakeven (Plano): <b>{fmt_dec(breakeven_sc_ha_plano, dec=1)} sc/ha</b> · Produtividade: <b>{fmt_dec(produtividade, dec=1)} sc/ha</b></div>
+        <div class='p'>Folga: <b>{fmt_dec(folga_sc_ha, dec=1)} sc/ha</b> (quanto pode cair antes de encostar no 0x0).</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("### 🔥 Mapa de Sensibilidade: Margem Líquida (R$/ha)")
 prod_range = np.arange(40, 90, 5)
@@ -822,30 +1041,33 @@ for i, p_prod in enumerate(prod_range):
         margem_ha = rec_ha - custo_fixo_ha - custo_arr_ha_cenario
         z_data[i, j] = margem_ha
 
-fig_heat = go.Figure(data=go.Heatmap(z=z_data, x=preco_range, y=prod_range, colorscale="RdYlGn", colorbar=dict(title="R$/ha")))
-text_vals = [[f"{val:,.0f}" for val in row] for row in z_data]
-fig_heat.add_trace(go.Scatter(x=np.repeat(preco_range, len(prod_range)), y=np.tile(prod_range, len(preco_range)), text=[v for r in text_vals for v in r], mode="text", textfont=dict(size=10, color="black"), hoverinfo="skip"))
-fig_heat.add_trace(go.Scatter(x=[preco_medio_blended], y=[produtividade], mode='markers', marker=dict(symbol='circle', size=12, color='#2F6FED', line=dict(width=2, color='white')), name="Sua Posição", hoverinfo="text", hovertext=f"VOCÊ ESTÁ AQUI<br>Prod: {produtividade:.1f} sc/ha<br>Preço Médio: {fmt_brl(preco_medio_blended)}<br>Resultado: {fmt_brl(lucro_liquido/area_total)}/ha"))
+fig_heat = go.Figure(data=go.Heatmap(z=z_data, x=preco_range, y=prod_range, colorscale=[[0.0, "#9B4A3C"],[0.5, "#F3EBDD"],[1.0, "#1F5A3B"]], colorbar=dict(title="R$/ha")))
+text_vals = [[fmt_dec(val, dec=0) for val in row] for row in z_data]
+fig_heat.add_trace(go.Scatter(x=np.repeat(preco_range, len(prod_range)), y=np.tile(prod_range, len(preco_range)), text=[v for r in text_vals for v in r], mode="text", textfont=dict(size=12, color="black"), hoverinfo="skip"))
+fig_heat.add_trace(go.Scatter(x=[preco_medio_blended], y=[produtividade], mode='markers', marker=dict(symbol='circle', size=12, color='#1F5A3B', line=dict(width=2, color='white')), name="Sua Posição", hoverinfo="text", hovertext=f"VOCÊ ESTÁ AQUI<br>Prod: {fmt_dec(produtividade, ' sc/ha', dec=1)}<br>Preço Médio: {fmt_brl(preco_medio_blended)}<br>Resultado: {fmt_brl(lucro_liquido/area_total)}/ha"))
 fig_heat.update_layout(title="Margem Líquida por Hectare (R$/ha)", xaxis_title="Preço (R$/sc)", yaxis_title="Produtividade (sc/ha)", height=600)
+apply_plotly_theme(fig_heat, height=600)
 st.plotly_chart(fig_heat, use_container_width=True)
 
 # --- INTELIGÊNCIA (ABAS ATUALIZADAS) ---
 st.markdown("### 🧠 Inteligência & Analytics")
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔄 Barter & ROI", "📦 Decisão Armazenagem", "📅 Sazonalidade", "🔮 Monte Carlo", "🤖 AI Advisor (Avançado)"])
+tab1, tab2, tab3 = st.tabs(["🔄 Barter & ROI", "📦 Decisão Armazenagem", "📅 Sazonalidade"])
+
+# (Monte Carlo removido por solicitação — mantém o app mais limpo e executivo)
 
 with tab1:
     st.markdown("#### 📊 Eficiência Financeira (Barter & ROI)")
     col_br1, col_br2 = st.columns(2)
     with col_br1:
         st.markdown("**ROI (Retorno Sobre Investimento)**")
-        st.metric("ROI Estimado", f"{roi_perc:.1f}%", help="Para cada R$ 100,00 investidos, quanto retorna de lucro.")
+        st.metric("ROI Estimado", fmt_pct(roi_perc, 1), help="Para cada R$ 100,00 investidos, quanto retorna de lucro.")
         if roi_perc > 15: st.success("🚀 ROI Excelente (>15%)")
         elif roi_perc > 0: st.info("📈 ROI Positivo (Operação Saudável)")
         else: st.error("📉 ROI Negativo (Atenção)")
     with col_br2:
         st.markdown("**Monitor de Barter (Relação de Troca)**")
-        st.metric("Custo Operacional (Barter)", f"{barter_operacional_sc_ha:.1f} sc/ha", help="Sacas necessárias para pagar apenas o custo operacional.")
-        st.metric("Custo Total (Barter)", f"{barter_total_sc_ha:.1f} sc/ha", help="Sacas necessárias para pagar TUDO (Op + Fin + Arr).")
+        st.metric("Custo Operacional (Barter)", fmt_dec(barter_operacional_sc_ha, " sc/ha", dec=1), help="Sacas necessárias para pagar apenas o custo operacional.")
+        st.metric("Custo Total (Barter)", fmt_dec(barter_total_sc_ha, " sc/ha", dec=1), help="Sacas necessárias para pagar TUDO (Op + Fin + Arr).")
 
     st.markdown("---")
     
@@ -893,42 +1115,10 @@ with tab3:
     indices_sazonais = [1.03, 1.01, 0.95, 0.94, 0.97, 0.99, 1.01, 1.03, 1.05, 1.07, 1.08, 1.05]
     fator_ajuste = preco_mercado / indices_sazonais[datetime.now().month - 1]
     precos_projetados = [idx * fator_ajuste for idx in indices_sazonais]
-    st.plotly_chart(go.Figure([go.Bar(x=meses, y=precos_projetados, marker_color='#81C784')]).update_layout(height=300), use_container_width=True)
-
-with tab4:
-    if st.button("🔄 Rodar Simulação Monte Carlo"):
-        cenarios = np.random.normal(preco_mercado, preco_mercado*0.18, 5000)
-        lucros = (receita_hedge + (qtd_aberta_fisica * cenarios)) - custo_total_caixa
-        st.metric("Probabilidade de Lucro", f"{(np.mean(lucros > 0) * 100):.1f}%")
-        st.plotly_chart(px.histogram(lucros, title="Distribuição de Resultados"), use_container_width=True)
-
-with tab5:
-    st.markdown("### 🤖 Advisor Financeiro")
-    if roi_perc < 0:
-        st.error(f"🚨 **ALERTA DE PREJUÍZO:** Sua operação está destruindo valor. O ROI é de **{roi_perc:.1f}%**. Isso significa que para cada R$ 100 investidos, você perde R$ {abs(roi_perc):.1f}. Revise urgentemente o Custo Operacional (atualmente {fmt_brl(custo_ha_operacional)}/ha) ou sua estratégia de vendas.")
-    elif roi_perc < 10:
-        st.warning(f"⚠️ **MARGEM APERTADA:** O ROI de **{roi_perc:.1f}%** é positivo, mas baixo para o risco agrícola. Qualquer quebra de safra ou queda de preço pode levar ao prejuízo. Considere travar custos ou aumentar o Hedge.")
-    else:
-        st.success(f"✅ **OPERAÇÃO SAUDÁVEL:** Excelente ROI de **{roi_perc:.1f}%**. Sua eficiência está acima da média. Aproveite para criar caixa.")
-    
-    margem_sc = produtividade - breakeven_sc_ha_plano
-    if margem_sc < 0:
-        st.markdown(f"""📉 **PONTO DE EQUILÍBRIO CRÍTICO:** Você precisa de **{breakeven_sc_ha_plano:.1f} sc/ha** para pagar a conta, mas sua estimativa é colher apenas **{produtividade:.1f} sc/ha**. O déficit é de **{abs(margem_sc):.1f} sc/ha**.
-
-> Referência conservadora (100% a mercado): **{breakeven_sc_ha_conservador:.1f} sc/ha**.""")
-    elif margem_sc < 5:
-        st.markdown(f"🔸 **RISCO DE PRODUTIVIDADE:** Sua 'gordura' é muito fina. Você só tem **{margem_sc:.1f} sc/ha** de margem de segurança. Uma seca moderada pode comprometer o lucro.")
-    else:
-        st.markdown(f"🛡️ **SEGURANÇA PRODUTIVA:** Você tem uma folga confortável de **{margem_sc:.1f} sc/ha** acima do custo. Isso protege sua operação contra intempéries leves.")
-
-    peso_juros = (custo_financeiro_juros / receita_bruta_total) * 100
-    if peso_juros > 15:
-        st.markdown(f"💸 **ALAVANCAGEM ALTA:** Cuidado. Os juros bancários estão consumindo **{peso_juros:.1f}%** da sua receita bruta total. Tente reduzir a exposição financiada ou buscar taxas menores.")
-    else:
-        st.markdown(f"💰 **ALAVANCAGEM CONTROLADA:** O custo financeiro representa apenas **{peso_juros:.1f}%** da receita, o que é saudável.")
+    st.plotly_chart(go.Figure([go.Bar(x=meses, y=precos_projetados, marker_color='#556B2F')]).update_layout(height=300), use_container_width=True)
 
 st.markdown("""
 <div class="footer">
-    AgroExposure v10.3 (Fixed Visuals & KPI Strategy) · <b>Desenvolvido por João Cunha</b>
+    AgroExposure · Agro Premium UI · <b>Desenvolvido por João Cunha</b>
 </div>
 """, unsafe_allow_html=True)
